@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 69; // bump every push; shown in footer to spot cached code
+const BUILD_V = 70; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -586,47 +586,42 @@ function renderInner(){
   const q = query.toLowerCase();
   let html = "";
   if (filter === "CHANGES"){
-    html += `<h2>🗓️ This week — Week ${WEEK_NUM}</h2>`;
+    // Latest = all injured players, strictly chronological by most recent
+    // news/updates. A player jumps to the top whenever Sleeper bumps their
+    // news_updated or their status changes.
+    html += `<h2>⚡ Latest Updates</h2>`;
+    html += `<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Every injured player, most recent first · refreshes every 90s.</div>`;
     const wq = query.toLowerCase();
-    const stories = WEEK_STORIES.filter(s => (!wq || s.name.toLowerCase().includes(wq)) && !isHidden(s) && !isStoryStale(s));
-    html += stories.length ? stories.map(s=>{
-      const w = WAIVER_MAP[normName(s.name)];
-      return `<div class="card">
-        <div class="row1"><div><div class="pname">${esc(s.name)}</div>
-        <div class="pmeta">${esc(s.pos)} · ${esc(s.team)}</div></div>
-        <span class="badge ${badgeClass(s.status)}">${esc(shortStatus(s.status))}</span>
-        <button class="hidebtn" data-hide="${esc(hideKey(s))}" title="Hide — I see him playing">✕</button></div>
-        <div class="inj">${esc(s.note)}</div>
-        ${w?`<div class="waiver"><div class="wl">⚡ Waiver target${pickupsOf(w).length>1?"s":""}</div>
-          ${pickupsOf(w).map(n=>`<div class="wp">${esc(n)}</div>`).join("")}
-          <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
-    }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
-    const auto = autoWeekStories().filter(s =>
-      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)) && !isHidden(s));
-    if (auto.length){
-      html += `<h2>📡 Auto-detected this week</h2>`;
-      html += auto.map(s=>{
-        const p = players[s.id] || { name: s.name, pos: s.pos, team: s.team };
-        const st = s.news ? s.status : s.to;
-        const sub = s.news ? `📰 News update · ${timeAgo(s.t)}` : `${esc(s.from)} → ${esc(s.to)} · ${timeAgo(s.t)}`;
-        return `<div class="card">
-          <div class="row1"><div><div class="pname">${esc(s.name)}</div>
-          <div class="pmeta">${esc(s.pos)} · ${esc(s.team||"")}</div></div>
-          <span class="badge ${badgeClass(st)}">${esc(shortStatus(st))}</span>
-          <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
-          <div class="inj">${sub}</div>
-          ${waiverFor(p)}</div>`;
-      }).join("");
-    }
-    html += "<h2>⚡ Live status changes</h2>";
-    const items = changes.filter(c => (!wq || c.name.toLowerCase().includes(wq)) && !isChangeStale(c)).slice(0,40);
-    html += items.length ? items.map(c=>
-      c.news
-      ? `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
-         📰 News update · <b>${esc(c.status)}</b> · <time>${timeAgo(c.t)}</time></div>`
-      : `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
-       ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
-    ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
+    let arr = Object.values(players).filter(p =>
+      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) &&
+      (!wq || p.name.toLowerCase().includes(wq)) && !isHidden(p) && !isStaleTag(p));
+    // 14-day freshness — same as browse tabs
+    arr = arr.filter(p => p.news_updated && (Date.now() - p.news_updated) < 14*24*3600*1000);
+    // Strictly chronological: most recently updated first
+    arr.sort((a, b) => (b.news_updated || 0) - (a.news_updated || 0));
+    html += arr.length ? arr.slice(0, 80).map(p => {
+      const isNew = changes.length && changes[0].id && String(changes[0].id) === String(p.id) &&
+        (Date.now() - changes[0].t) < 10*60*1000;
+      // Check if this player has a recent change entry to show what happened
+      const ch = changes.find(c => String(c.id) === String(p.id));
+      const activity = ch
+        ? (ch.news ? `📰 News update` : `${esc(ch.from)} → <b>${esc(ch.to)}</b>`)
+        : null;
+      return `<div class="card${isNew ? " new" : ""}">
+        <div class="row1"><div><div class="pname">${esc(p.name)}</div>
+        <div class="pmeta">${esc(p.pos)} · ${esc(p.team || "FA")}${p.injury_part ? " · " + esc(p.injury_part) : ""}</div></div>
+        <span class="badge ${badgeClass(p.status)}">${esc(shortStatus(p.status))}</span>
+        <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
+        ${p.injury_notes ? `<div class="inj">${esc(p.injury_notes)}</div>` : ""}
+        <div class="pmeta" style="margin-top:4px;opacity:.8">${activity ? activity + " · " : ""}Updated ${timeAgo(p.news_updated)}</div>
+        ${(() => { const pn = newsForPlayer(p.name);
+          return pn.length ? `<button class="newstoggle" data-news="${esc(p.id)}" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;padding:6px 0;cursor:pointer">📰 ${pn.length} recent headline${pn.length > 1 ? "s" : ""} ▾</button>
+          <div class="newsbody" id="nb-${esc(p.id)}" style="display:none;margin-top:4px">${pn.map(a =>
+            `<div style="padding:8px 0;border-top:1px solid #1e293b"><div style="font-size:13px;font-weight:600">${esc(a.headline)}</div>
+             <div style="font-size:12px;color:var(--muted);margin-top:2px">${a.desc ? esc(a.desc.slice(0, 120)) + (a.desc.length > 120 ? "…" : "") + " · " : ""}${timeAgo(a.published)}</div></div>`
+          ).join("")}</div>` : ""; })()}
+        ${waiverFor(p)}</div>`;
+    }).join("") : `<div class="empty">No injuries right now. 🎉</div>`;
   } else if (filter === "NEWS"){
     html += "<h2>📰 NFL News Wire</h2>";
     html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines · last 24 hours · refreshes every 90s.</div>";
