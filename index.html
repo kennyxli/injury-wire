@@ -233,10 +233,21 @@ function detectChanges(next){
 
 function waiverFor(p){
   const w = WAIVER_MAP[normName(p.name)];
-  if (!w) return "";
-  return `<div class="waiver"><div class="wl">⚡ Waiver target</div>
+  if (w) return `<div class="waiver"><div class="wl">⚡ Waiver target</div>
     <div class="wp">${esc(w.pickup)}</div>
     <div class="wn">${esc(w.note)}</div></div>`;
+  // Fallback: show the most-added players at the same position right now.
+  // When a starter goes down, the crowd usually finds the backup first.
+  const same = trending
+    .map(t => ({ info: players[t.player_id], count: t.count }))
+    .filter(x => x.info && x.info.pos === p.pos && normName(x.info.name) !== normName(p.name))
+    .slice(0, 2);
+  if (!same.length) return "";
+  const names = same.map(x =>
+    `<div class="wp">${esc(x.info.name)} <span style="color:var(--muted);font-weight:400">· ${esc(x.info.team||"FA")}</span></div>
+     <div class="wn">+${Number(x.count).toLocaleString()} adds in 24h — the crowd is already moving.</div>`
+  ).join("");
+  return `<div class="waiver"><div class="wl">🔥 Trending ${esc(p.pos)} adds</div>${names}</div>`;
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
