@@ -94,6 +94,7 @@
 </div>
 
 <button class="refresh" id="refreshBtn">⟳ Pull latest now</button>
+<button class="refresh" id="notifyBtn" style="margin-top:6px">🔔 Enable injury alerts</button>
 <button class="refresh" id="yahooBtn" style="display:none">🔗 Connect Yahoo</button>
 
 <div class="section" id="list"></div>
@@ -107,7 +108,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 76; // bump every push; shown in footer to spot cached code
+const BUILD_V = 77; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -340,6 +341,25 @@ function isChangeStale(c){
   return isStaleTag(p);
 }
 
+// Push notifications for injury changes (works while page is open;
+// on iOS, add to Home Screen for banner-style alerts).
+let notifyEnabled = false;
+try{ notifyEnabled = localStorage.getItem("ww_notify") === "1"; }catch(e){}
+function notifyPermitted(){ return notifyEnabled && "Notification" in window && Notification.permission === "granted"; }
+function fireNotify(title, body){
+  if (!notifyPermitted()) return;
+  try{ new Notification(title, { body, icon: "icon.png" }); }catch(e){}
+}
+// Only notify for meaningful changes — not every Questionable tag.
+function shouldNotify(from, to){
+  const t = (to || "").toUpperCase();
+  const f = (from || "").toUpperCase();
+  // New serious designation
+  if (/OUT|IR|DOUBTFUL/i.test(t) && !/OUT|IR|DOUBTFUL/i.test(f)) return true;
+  // Downgrade: Q -> Out, etc. (getting worse)
+  if (/QUESTIONABLE/i.test(f) && /OUT|IR|DOUBTFUL/i.test(t)) return true;
+  return false;
+}
 function detectChanges(next){
   const now = Date.now();
   for (const id in next){
@@ -349,6 +369,8 @@ function detectChanges(next){
       changes.unshift({ t: now, name: p.name, team: p.team, pos: p.pos,
         from: prev || "Healthy", to: p.status || "Healthy", id });
       if (changes.length > 60) changes.pop();
+      if (shouldNotify(prev, p.status))
+        fireNotify(`🚨 ${p.name} (${p.pos}, ${p.team})`, `${prev || "Healthy"} → ${p.status}${p.injury_part ? " · " + p.injury_part : ""}`);
       if (hidden[id]){ delete hidden[id]; // fresh data overrides a manual hide
         try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
       const nk = "name:" + normName(p.name);
@@ -990,6 +1012,26 @@ listEl.addEventListener("click", e=>{
 });
 $("search").addEventListener("input", e=>{ query = e.target.value; render(); });
 $("refreshBtn").addEventListener("click", ()=>refresh(true));
+$("notifyBtn").addEventListener("click", async ()=>{
+  if (!("Notification" in window)){ alert("Notifications not supported on this device."); return; }
+  if (notifyEnabled && Notification.permission === "granted"){
+    notifyEnabled = false;
+    try{ localStorage.setItem("ww_notify", "0"); }catch(e){}
+    updateNotifyBtn();
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  notifyEnabled = perm === "granted";
+  try{ localStorage.setItem("ww_notify", notifyEnabled ? "1" : "0"); }catch(e){}
+  updateNotifyBtn();
+  if (notifyEnabled) fireNotify("🔔 Injury alerts on", "You'll get notified when players go Out, IR, or Doubtful.");
+});
+function updateNotifyBtn(){
+  const b = $("notifyBtn"); if (!b) return;
+  b.textContent = (notifyEnabled && Notification.permission === "granted")
+    ? "🔕 Injury alerts on — tap to disable" : "🔔 Enable injury alerts";
+}
+updateNotifyBtn();
 $("yahooBtn").addEventListener("click", ()=>{
   if (yahooConnected()){
     localStorage.removeItem("ww_yahoo");
