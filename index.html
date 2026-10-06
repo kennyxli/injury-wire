@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 49; // bump every push; shown in footer to spot cached code
+const BUILD_V = 50; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -590,7 +590,10 @@ function renderInner(){
       .slice(0, 6);
     // FAAB tier: role clarity + duration + market validation + talent (proxied by adds).
     // Returns {label, pct} — pct is % of FAAB budget to bid.
-    function faabTier({ score, adds, leadStatus, isBreakout, tier }) {
+    // IMPORTANT: tier is driven by the LEAD injury (the starter who's out),
+    // not the compounded score. A backup's IR doesn't 2x the value — the
+    // starter's status is what creates the role. Secondaries are context.
+    function faabTier({ leadWeight, adds, leadStatus, isBreakout, tier }) {
       const st = (leadStatus || "").toUpperCase();
       const isIR = st.includes("IR") || st.includes("PUP");
       const isOut = st === "OUT";
@@ -598,10 +601,10 @@ function renderInner(){
       const longRunway = isIR;
       const medRunway = isOut;
       if (!isBreakout) {
-        // Injury-driven
-        if (score >= 6 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 25 };
-        if (score >= 4 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
-        if (score >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: 15 };
+        // Injury-driven: leadWeight is the starter's injury severity × recency
+        if (leadWeight >= 4 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 25 };
+        if (leadWeight >= 3 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
+        if (leadWeight >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: 15 };
         if (adds >= 50000) return { label: "🟡 Strong add", pct: 10 };
         return { label: "🟢 Flier", pct: 5 };
       } else {
@@ -642,7 +645,7 @@ function renderInner(){
         secondary.push(o.name + " (" + shortStatus(o.status) + ")");
         if (secondary.length >= 2) break;
       }
-      const faab = faabTier({ score: e.score, adds: e.adds, leadStatus: h.status, isBreakout: false });
+      const faab = faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: h.status, isBreakout: false });
       cards.push({ name: e.name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
         faab: faab,
@@ -667,7 +670,7 @@ function renderInner(){
       const isBreakout = !p.status && newsAgeH < 6 && (Number(t.count) || 0) > 50000;
       if (isBreakout && ctx.startsWith("📈")) ctx = "🔥 Breakout — fresh news, heavy adds";
       const tier = PICKUP_CONTEXT[normName(p.name)] ? 0 : (ctx.startsWith("📈") ? 2 : 1);
-      const ffaab = faabTier({ score: 0, adds: Number(t.count) || 0, leadStatus: "", isBreakout: true, tier });
+      const ffaab = faabTier({ leadWeight: 0, adds: Number(t.count) || 0, leadStatus: "", isBreakout: true, tier });
       fillers.push({ name: p.name, pos: p.pos, team: p.team || "FA",
         count: Number(t.count).toLocaleString(), countNum: Number(t.count) || 0,
         faab: ffaab, ctx, tier });
