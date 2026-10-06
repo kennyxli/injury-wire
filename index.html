@@ -226,7 +226,7 @@ async function fetchPlayers(){
 }
 async function fetchTrending(){
   try{
-    const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=25");
+    const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=50");
     if (!r.ok) return [];
     return r.json();
   }catch(e){ return []; }
