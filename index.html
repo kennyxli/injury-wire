@@ -228,6 +228,35 @@ async function fetchTrending(){
   }catch(e){ return []; }
 }
 
+// Which teams have finished this week's game (ESPN scoreboard).
+// A Questionable tag older than the final whistle is a leftover, not news.
+let teamGameEnd = {};
+async function fetchScoreboard(){
+  try{
+    const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=2026&seasontype=2&week=${WEEK_NUM}`);
+    if (!r.ok) return {};
+    const d = await r.json();
+    const map = {};
+    for (const e of (d.events || [])){
+      const comp = e.competitions && e.competitions[0];
+      if (!comp || !comp.status || comp.status.type.state !== "post") continue;
+      const end = new Date(comp.date).getTime() + 4*3600*1000;
+      for (const c of (comp.competitors || [])){
+        let abbr = c.team.abbreviation;
+        if (abbr === "WSH") abbr = "WAS"; // ESPN -> Sleeper
+        map[abbr] = end;
+      }
+    }
+    return map;
+  }catch(e){ return {}; }
+}
+function isStaleQ(p){
+  if (!/QUESTIONABLE/i.test(p.status || "")) return false;
+  const end = teamGameEnd[p.team];
+  if (!end) return false;
+  return (p.news_updated || 0) < end;
+}
+
 function detectChanges(next){
   const now = Date.now();
   for (const id in next){
@@ -314,7 +343,7 @@ function injuryContextFor(p){
   // All hurt teammates at the same position — derived live, so every player
   // in a banged-up unit gets the full picture with zero manual upkeep.
   const hurt = Object.values(players).filter(x =>
-    x.team && x.team === p.team && x.pos === p.pos && x.status &&
+    x.team && x.team === p.team && x.pos === p.pos && x.status && !isStaleQ(x) &&
     /OUT|IR|DOUBTFUL|PUP|SUSP|QUESTIONABLE/i.test(x.status) && normName(x.name) !== pk);
   if (hurt.length){
     hurt.sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
@@ -494,7 +523,7 @@ function renderInner(){
     const FRESH_MS = 5*24*3600*1000;
     const hurt = Object.values(players)
       .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p)
-        && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
+        && !isStaleQ(p) && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
       .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (b.news_updated - a.news_updated) || (relevance(a) - relevance(b)));
     for (const h of hurt){
       const w = WAIVER_MAP[normName(h.name)];
@@ -542,7 +571,7 @@ function renderInner(){
     ).join("") : `<div class="empty">Loading waiver targets…</div>`;
   } else {
     let arr = Object.values(players).filter(p =>
-      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p));
+      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p) && !isStaleQ(p));
     // Browsing shows the last 14 days of injury news — older than that isn't actionable.
     // Searching digs through everything.
     if (!q){
@@ -584,7 +613,7 @@ let lastOk = 0;
 async function refresh(manual){
   try{
     if (manual) statusEl.textContent = "Pulling latest…";
-    const [pd, tr] = await Promise.all([fetchPlayers(), fetchTrending()]);
+    const [pd, tr, sb] = await Promise.all([fetchPlayers(), fetchTrending(), fetchScoreboard()]);
     const next = {};
     for (const id in pd){
       const p = pd[id];
@@ -597,6 +626,7 @@ async function refresh(manual){
     }
     detectChanges(next);
     players = next; trending = tr || [];
+    teamGameEnd = sb || {};
     trendingNames = new Set();
     for (const t of trending){
       const p = players[t.player_id];
