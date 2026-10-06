@@ -256,6 +256,31 @@ function waiverFor(p){
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+// Auto-generate "this week" stories from significant status changes detected
+// in the last 7 days. No manual updates needed — the feed writes itself.
+function autoWeekStories(){
+  const weekAgo = Date.now() - 7*24*3600*1000;
+  const badTo = ["OUT","IR","DOUBTFUL","PUP","SUSP"];
+  const seen = {};
+  const out = [];
+  for (const c of changes){
+    if (c.t < weekAgo || seen[c.id]) continue;
+    const toUp = (c.to||"").toUpperCase();
+    const fromUp = (c.from||"").toUpperCase();
+    const worsened = badTo.some(k=>toUp.includes(k)) ||
+      (toUp.includes("QUESTIONABLE") && !fromUp.includes("QUESTIONABLE"));
+    if (!worsened) continue;
+    seen[c.id] = 1;
+    out.push(c);
+  }
+  out.sort((a,b)=>{
+    const ra = players[a.id] ? relevance(players[a.id]) : 99999;
+    const rb = players[b.id] ? relevance(players[b.id]) : 99999;
+    return ra - rb;
+  });
+  return out.slice(0,6);
+}
+
 function render(){
   const q = query.toLowerCase();
   let html = "";
@@ -274,6 +299,20 @@ function render(){
           <div class="wp">${esc(w.pickup)}</div>
           <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
     }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
+    const auto = autoWeekStories().filter(s =>
+      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)));
+    if (auto.length){
+      html += `<h2>📡 Auto-detected this week</h2>`;
+      html += auto.map(s=>{
+        const p = players[s.id] || { name: s.name, pos: s.pos, team: s.team };
+        return `<div class="card">
+          <div class="row1"><div><div class="pname">${esc(s.name)}</div>
+          <div class="pmeta">${esc(s.pos)} · ${esc(s.team||"")}</div></div>
+          <span class="badge ${badgeClass(s.to)}">${esc(shortStatus(s.to))}</span></div>
+          <div class="inj">${esc(s.from)} → ${esc(s.to)} · ${timeAgo(s.t)}</div>
+          ${waiverFor(p)}</div>`;
+      }).join("");
+    }
     html += "<h2>⚡ Live status changes</h2>";
     const items = changes.filter(c => !wq || c.name.toLowerCase().includes(wq)).slice(0,40);
     html += items.length ? items.map(c=>
