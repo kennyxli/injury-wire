@@ -149,6 +149,7 @@ const WAIVER_MAP = {
   "ja'marr chase":    { pickup:"Dohnte Meyers", note:"Cincinnati's WR3 with a huge role — Chase is out, Higgins is questionable, Iosivas is on IR." },
   "tee higgins":      { pickup:"Dohnte Meyers", note:"Would start for Cincinnati if Higgins sits. Already has a real role." },
   "a.j. brown":       { pickup:"Romeo Doubs", note:"$68M free-agent signing steps into New England's WR1 role. Mack Hollins is the red-zone veteran behind him." },
+  "mack hollins":     { pickup:"Romeo Doubs", note:"Doubs' role grows with Hollins questionable — already New England's WR1 with Brown on IR." },
   "justin jefferson": { pickup:"Jordan Addison", note:"Takes over as Minnesota's lead receiver with Jefferson out (ankle). Jauan Jennings is WR3." },
   "ladd mcconkey":    { pickup:"Tre Harris", note:"Still on the Chargers as WR3 — steps into a starting role next to Quentin Johnston with McConkey out (foot)." },
   "dj moore":         { pickup:"Keon Coleman", note:"Buffalo's big-bodied WR steps into a bigger role with Moore questionable. The market is already all over him." },
@@ -525,19 +526,34 @@ function renderInner(){
       .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p)
         && !isStaleQ(p) && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
       .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (b.news_updated - a.news_updated) || (relevance(a) - relevance(b)));
+    // Group curated pickups: when several injuries point at the same pickup,
+    // the freshest news drives the attribution — not a weeks-old IR stint.
+    const byPickup = new Map();
     for (const h of hurt){
       const w = WAIVER_MAP[normName(h.name)];
       if (!w) continue;
-      const names = pickupsOf(w);
-      if (names.some(n => seen.has(normName(n)))) continue;
-      if (!names.some(n => trendingNames.has(normName(n)))) continue;
-      names.forEach(n => seen.add(normName(n)));
-      const pl = findByName(names[0]) || {};
-      const cnt = trendingCounts[normName(names[0])];
-      cards.push({ name: names.join(" / "), pos: pl.pos || "", team: pl.team || "",
+      for (const name of pickupsOf(w)){
+        const pk = normName(name);
+        if (!trendingNames.has(pk) || seen.has(pk)) continue;
+        const cur = byPickup.get(pk);
+        if (!cur || (h.news_updated || 0) > (cur.h.news_updated || 0))
+          byPickup.set(pk, { h, w, name, adds: trendingCounts[pk] || 0 });
+      }
+    }
+    const drivers = [...byPickup.values()]
+      .sort((a,b) => (statusRank(a.h.status) - statusRank(b.h.status))
+        || (b.adds - a.adds)
+        || ((b.h.news_updated || 0) - (a.h.news_updated || 0))
+        || (relevance(a.h) - relevance(b.h)))
+      .slice(0, 6);
+    for (const { h, w, name } of drivers){
+      const pk = normName(name);
+      seen.add(pk);
+      const pl = findByName(name) || {};
+      const cnt = trendingCounts[pk];
+      cards.push({ name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
-        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (names.length>1 ? " committee" : "") + " — " + w.note });
-      if (cards.length >= 6) break;
+        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ") — " + w.note });
     }
     // 2. Trending fills the rest — tiered by conviction, not raw hype:
     //    tier 0 = curated pickup (analyst + crowd agree)
