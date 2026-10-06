@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 39; // bump every push; shown in footer to spot cached code
+const BUILD_V = 40; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -247,7 +247,7 @@ async function fetchScoreboard(){
     for (const e of (d.events || [])){
       const comp = e.competitions && e.competitions[0];
       if (!comp || !comp.status || comp.status.type.state !== "post") continue;
-      const end = new Date(comp.date).getTime() + 4*3600*1000;
+      const end = new Date(comp.date).getTime() + 16*3600*1000; // kickoff + game (~4h) + post-game grace (data refreshes aren't news)
       for (const c of (comp.competitors || [])){
         let abbr = c.team.abbreviation;
         if (abbr === "WSH") abbr = "WAS"; // ESPN -> Sleeper
