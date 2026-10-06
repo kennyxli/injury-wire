@@ -83,8 +83,8 @@
 <input class="search" id="search" type="search" placeholder="Search player…" autocomplete="off">
 
 <div class="tabs" id="tabs">
-  <button class="tab active" data-f="TRENDING">🎯 Waivers</button>
-  <button class="tab" data-f="CHANGES">⚡ Latest</button>
+  <button class="tab active" data-f="CHANGES">⚡ Latest</button>
+  <button class="tab" data-f="TRENDING">🎯 Waivers</button>
   <button class="tab" data-f="NEWS">📰 News</button>
   <button class="tab" data-f="ALL">All</button>
   <button class="tab" data-f="QB">QB</button>
@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 75; // bump every push; shown in footer to spot cached code
+const BUILD_V = 76; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -188,7 +188,7 @@ let changes = [];          // {t, name, team, pos, from, to} or {t, name, team, 
 let trending = [];
 let nflNews = [];          // ESPN NFL news articles {headline, desc, published, link}
 let trendingNames = new Set(); // normalized names with active add volume
-let filter = "TRENDING", query = "";
+let filter = "CHANGES", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
 try { prevNews = JSON.parse(localStorage.getItem("ww_prevnews") || "{}"); } catch(e){}
 
