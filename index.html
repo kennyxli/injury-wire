@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 52; // bump every push; shown in footer to spot cached code
+const BUILD_V = 53; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -584,12 +584,17 @@ function renderInner(){
         }
       }
     }
+    // Talent flag: players the market loves but who haven't shown they're good.
+    // Caps FAAB — opportunity without talent is a trap. Add names as Kenny calls them.
+    const LOW_TALENT = new Set(["dohnte meyers"]);
     // FAAB tier: role clarity + duration + market validation + talent (proxied by adds).
     // Returns {label, pct} — pct is % of FAAB budget to bid.
     // IMPORTANT: tier is driven by the LEAD injury (the starter who's out),
     // not the compounded score. A backup's IR doesn't 2x the value — the
     // starter's status is what creates the role. Secondaries are context.
-    function faabTier({ leadWeight, adds, leadStatus, isBreakout, tier, pos }) {
+    function faabTier({ leadWeight, adds, leadStatus, isBreakout, tier, pos, name }) {
+      // Talent check first: if flagged as low-talent, cap at flier regardless
+      if (name && LOW_TALENT.has(normName(name))) return { label: "🟢 Flier", pct: 5 };
       const st = (leadStatus || "").toUpperCase();
       const isIR = st.includes("IR") || st.includes("PUP");
       const isOut = st === "OUT";
@@ -620,7 +625,7 @@ function renderInner(){
       .filter(e => e.score > 0)
       .map(e => {
         const pl0 = findByName(e.name) || {};
-        return { ...e, _faab: faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: e.lead.status, isBreakout: false, pos: pl0.pos }) };
+        return { ...e, _faab: faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: e.lead.status, isBreakout: false, pos: pl0.pos, name: e.name }) };
       })
       .sort((a,b) => (b._faab.pct - a._faab.pct) || (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
       .slice(0, 6);
@@ -686,9 +691,14 @@ function renderInner(){
     }
     fillers.sort((a,b) => (a.tier - b.tier) || (b.countNum - a.countNum));
     for (const f of fillers){
-      if (cards.length >= 12) break;
+      if (cards.length >= 24) break;
       cards.push(f);
     }
+    // Merge injuries + breakouts: sort ALL by FAAB% high to low.
+    // A breakout like Brian Robinson (3 TDs, 383k adds) competes with
+    // injury pickups — not just filler underneath.
+    cards.sort((a, b) => ((b.faab || {}).pct || 0) - ((a.faab || {}).pct || 0));
+    cards.length = Math.min(cards.length, 12);
     html += cards.length ? cards.map((c, i)=>
       `<div class="card">
         <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(c.name)}</div>
