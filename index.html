@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 48; // bump every push; shown in footer to spot cached code
+const BUILD_V = 49; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -588,6 +588,30 @@ function renderInner(){
       .filter(e => e.score > 0)
       .sort((a,b) => (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
       .slice(0, 6);
+    // FAAB tier: role clarity + duration + market validation + talent (proxied by adds).
+    // Returns {label, pct} — pct is % of FAAB budget to bid.
+    function faabTier({ score, adds, leadStatus, isBreakout, tier }) {
+      const st = (leadStatus || "").toUpperCase();
+      const isIR = st.includes("IR") || st.includes("PUP");
+      const isOut = st === "OUT";
+      // Duration proxy: IR = multi-week, OUT = 1-3 weeks, Q/D = maybe 1 week
+      const longRunway = isIR;
+      const medRunway = isOut;
+      if (!isBreakout) {
+        // Injury-driven
+        if (score >= 6 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 25 };
+        if (score >= 4 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
+        if (score >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: 15 };
+        if (adds >= 50000) return { label: "🟡 Strong add", pct: 10 };
+        return { label: "🟢 Flier", pct: 5 };
+      } else {
+        // Breakout (performance-driven, no injury)
+        if (adds >= 500000) return { label: "🟡 Strong add", pct: 15 };
+        if (adds >= 200000) return { label: "🟡 Strong add", pct: 10 };
+        if (adds >= 50000) return { label: "🟢 Flier", pct: 5 };
+        return { label: "⚪ Watch", pct: 0 };
+      }
+    }
     // Tier 1b: curated injuries whose pickups are under the 50k top-tier gate —
     // to the bottom, latest first. Real adds, just lower volume.
     const withPickup = new Set([...byPickup.keys()].map(k => k));
@@ -618,8 +642,10 @@ function renderInner(){
         secondary.push(o.name + " (" + shortStatus(o.status) + ")");
         if (secondary.length >= 2) break;
       }
+      const faab = faabTier({ score: e.score, adds: e.adds, leadStatus: h.status, isBreakout: false });
       cards.push({ name: e.name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
+        faab: faab,
         ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (secondary.length ? " + " + secondary.join(" + ") : "") + " — " + e.w.note });
     }
     // 2. Trending fills the rest — tiered by conviction, not raw hype:
@@ -641,9 +667,10 @@ function renderInner(){
       const isBreakout = !p.status && newsAgeH < 6 && (Number(t.count) || 0) > 50000;
       if (isBreakout && ctx.startsWith("📈")) ctx = "🔥 Breakout — fresh news, heavy adds";
       const tier = PICKUP_CONTEXT[normName(p.name)] ? 0 : (ctx.startsWith("📈") ? 2 : 1);
+      const ffaab = faabTier({ score: 0, adds: Number(t.count) || 0, leadStatus: "", isBreakout: true, tier });
       fillers.push({ name: p.name, pos: p.pos, team: p.team || "FA",
         count: Number(t.count).toLocaleString(), countNum: Number(t.count) || 0,
-        ctx, tier });
+        faab: ffaab, ctx, tier });
     }
     fillers.sort((a,b) => (a.tier - b.tier) || (b.countNum - a.countNum));
     for (const f of fillers){
@@ -654,7 +681,7 @@ function renderInner(){
       `<div class="card">
         <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(c.name)}</div>
         <div class="pmeta">${esc(c.pos)}${c.pos && c.team ? " · " : ""}${esc(c.team)}</div></div>
-        ${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}</div>
+        <div style="text-align:right">${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}${c.faab && c.faab.pct > 0 ? `<div style="font-size:11px;color:var(--accent);font-weight:700;margin-top:2px">${esc(c.faab.label)} · ${c.faab.pct}%</div>` : ""}</div></div>
         <div class="inj">${esc(c.ctx)}</div></div>`
     ).join("") : `<div class="empty">Loading waiver targets…</div>`;
     if (noPickup.length){
