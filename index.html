@@ -119,8 +119,8 @@ const WEEK_STORIES = [
     note:"Core-muscle surgery, ~6 weeks on IR. Eagles backfield is Shipley alone." },
   { name:"Alvin Kamara", team:"NO", pos:"RB", status:"Questionable",
     note:"Limped off on MNF vs Falcons (3rd Q) but returned to the game. Still listed Q on the official report — Kendre Miller is the handcuff." },
-  { name:"Ladd McConkey", team:"LAC", pos:"WR", status:"Questionable",
-    note:"Foot — week-to-week since leaving the Week 4 game early with 0 catches." },
+  { name:"Ladd McConkey", team:"LAC", pos:"WR", status:"Out",
+    note:"Foot — ruled out after leaving the Week 4 game early with 0 catches." },
   { name:"Tyquan Thornton", team:"KC", pos:"WR", status:"IR",
     note:"Ankle surgery, out 12–16 weeks. Chiefs down a deep threat." },
 ];
@@ -582,6 +582,20 @@ function renderInner(){
       .filter(e => e.score > 0)
       .sort((a,b) => (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
       .slice(0, 6);
+    // Tier 1b: curated injuries whose pickups aren't being added (yet) — to the
+    // bottom, latest first. Real news, just no clear add right now.
+    const withPickup = new Set([...byPickup.keys()].map(k => k));
+    const noPickup = [];
+    for (const h of hurt){
+      const w = WAIVER_MAP[normName(h.name)];
+      if (!w) continue;
+      const names = pickupsOf(w);
+      if (names.some(n => withPickup.has(normName(n)))) continue;
+      if (noPickup.some(x => normName(x.h.name) === normName(h.name))) continue;
+      if (drivers.some(d => normName(d.lead.name) === normName(h.name))) continue;
+      noPickup.push({ h, w, names });
+    }
+    noPickup.sort((a,b) => ((b.h.news_updated || 0) - (a.h.news_updated || 0)));
     for (const e of drivers){
       const pk = normName(e.name);
       seen.add(pk);
@@ -632,6 +646,18 @@ function renderInner(){
         ${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}</div>
         <div class="inj">${esc(c.ctx)}</div></div>`
     ).join("") : `<div class="empty">Loading waiver targets…</div>`;
+    if (noPickup.length){
+      html += `<h2 style="margin-top:18px">📰 More injuries — no clear add yet</h2>`;
+      html += noPickup.slice(0, 8).map(({ h, w, names }) =>
+        `<div class="card">
+          <div class="row1"><div><div class="pname">${esc(h.name)}</div>
+          <div class="pmeta">${esc(h.pos)} · ${esc(h.team||"FA")}${h.injury_part? " · "+esc(h.injury_part):""}</div></div>
+          <span class="badge ${badgeClass(h.status)}">${esc(shortStatus(h.status))}</span>
+          <button class="hidebtn" data-hide="${esc(hideKey(h))}" title="Hide">✕</button></div>
+          <div class="inj">${esc(w.note)}</div>
+          <div class="pmeta" style="margin-top:6px;opacity:.7">Watch: ${names.map(esc).join(", ")} — not being added yet</div></div>`
+      ).join("");
+    }
   } else {
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p) && !isStaleTag(p));
