@@ -625,30 +625,44 @@ function renderInner(){
     html += "<h2>📰 NFL News Wire</h2>";
     html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines, refreshed every 90s.</div>";
     // Filter to injury-relevant news only — this is an injury wire, not ESPN.com
+    // Deduplicate: same story from multiple reporters (e.g. retirement reported 3 ways)
+    const seen = new Set();
     const items = [...nflNews]
       .map(a => ({ a, s: injuryScore(a) }))
       .filter(x => x.s > 0)
       .sort((x, y) => (y.s - x.s) || (y.a.published - x.a.published))
+      .filter(x => {
+        // Dedup key: first 5 significant words of headline
+        const key = normName(x.a.headline).split(" ").filter(w => w.length > 3).slice(0, 5).join(" ");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
       .slice(0, 30);
     html += items.length ? items.map(({a})=>{
       const pub = timeAgo(a.published);
-      // Try to link to a player card
-      let plink = "";
+      // Try to link to an ACTIVE player card — skip analysts/retired guys
+      // (Sleeper's DB includes former players like Orlovsky)
+      let ptag = "";
       for (const id in players){
         const p = players[id];
-        if (!p.name) continue;
+        if (!p.name || !p.team || p.team === "FA") continue;
         const nn = normName(p.name);
         const t = normName(a.headline + " " + a.desc);
         const parts = nn.split(" ").filter(w=>w.length>2);
         if (parts.length >= 2 && (t.includes(nn) || (t.includes(parts[0]) && t.includes(parts[parts.length-1])))){
-          plink = `<span class="badge ${badgeClass(p.status)}" style="margin-left:6px">${esc(p.name)}</span>`;
+          ptag = `<span style="display:inline-block;margin-top:8px;padding:4px 10px;border:1px solid var(--accent);border-radius:999px;font-size:12px;font-weight:700;color:var(--accent)">${esc(p.name)}${p.status ? " · " + esc(shortStatus(p.status)) : ""}</span>`;
           break;
         }
       }
       const open = a.link ? `<a href="${esc(a.link)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">` : "";
       const close = a.link ? "</a>" : "";
-      return `<div class="change">${open}<b>${esc(a.headline)}</b>${close}${plink}<br>
-        <span style="color:var(--muted);font-size:12px">${a.desc ? esc(a.desc.slice(0,140)) + (a.desc.length>140?"…":"") + " · " : ""}<time>${pub}</time></span></div>`;
+      return `<div class="card" style="margin-bottom:10px">
+        ${open}<div style="font-size:15px;font-weight:700;line-height:1.4">${esc(a.headline)}</div>${close}
+        ${a.desc ? `<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-top:6px">${esc(a.desc.slice(0,160))}${a.desc.length>160?"…":""}</div>` : ""}
+        ${ptag}
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;opacity:.7"><time>${pub}</time></div>
+      </div>`;
     }).join("") : `<div class="empty">No injury news right now.<br>Quiet wire — check back soon.</div>`;
   } else if (filter === "TRENDING"){
     const wv = window._waiverView || "top";
