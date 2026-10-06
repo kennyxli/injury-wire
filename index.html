@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 51; // bump every push; shown in footer to spot cached code
+const BUILD_V = 52; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -589,18 +589,23 @@ function renderInner(){
     // IMPORTANT: tier is driven by the LEAD injury (the starter who's out),
     // not the compounded score. A backup's IR doesn't 2x the value — the
     // starter's status is what creates the role. Secondaries are context.
-    function faabTier({ leadWeight, adds, leadStatus, isBreakout, tier }) {
+    function faabTier({ leadWeight, adds, leadStatus, isBreakout, tier, pos }) {
       const st = (leadStatus || "").toUpperCase();
       const isIR = st.includes("IR") || st.includes("PUP");
       const isOut = st === "OUT";
       // Duration proxy: IR = multi-week, OUT = 1-3 weeks, Q/D = maybe 1 week
       const longRunway = isIR;
       const medRunway = isOut;
+      const isRB = (pos || "").toUpperCase() === "RB";
       if (!isBreakout) {
-        // Injury-driven: leadWeight is the starter's injury severity × recency
+        // Injury-driven: leadWeight is the starter's injury severity × recency.
+        // Duration matters: a 1-2 week rental (OUT, not IR) caps lower than a
+        // multi-week runway (IR). RBs price higher than WRs (scarcity).
         if (leadWeight >= 4 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 25 };
-        if (leadWeight >= 3 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
-        if (leadWeight >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: 15 };
+        if (leadWeight >= 4 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
+        if (leadWeight >= 3 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 20 };
+        if (leadWeight >= 3 && adds >= 200000) return { label: "🟡 Strong add", pct: isRB ? 15 : 12 };
+        if (leadWeight >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: isRB ? 15 : 10 };
         if (adds >= 50000) return { label: "🟡 Strong add", pct: 10 };
         return { label: "🟢 Flier", pct: 5 };
       } else {
@@ -613,7 +618,10 @@ function renderInner(){
     }
     const drivers = [...byPickup.values()]
       .filter(e => e.score > 0)
-      .map(e => ({ ...e, _faab: faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: e.lead.status, isBreakout: false }) }))
+      .map(e => {
+        const pl0 = findByName(e.name) || {};
+        return { ...e, _faab: faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: e.lead.status, isBreakout: false, pos: pl0.pos }) };
+      })
       .sort((a,b) => (b._faab.pct - a._faab.pct) || (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
       .slice(0, 6);
     // Tier 1b: curated injuries whose pickups are under the 50k top-tier gate —
