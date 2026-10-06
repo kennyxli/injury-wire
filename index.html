@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 47; // bump every push; shown in footer to spot cached code
+const BUILD_V = 48; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -659,10 +659,16 @@ function renderInner(){
     ).join("") : `<div class="empty">Loading waiver targets…</div>`;
     if (noPickup.length){
       html += `<h2 style="margin-top:18px">📰 More injuries — deeper adds</h2>`;
-      html += noPickup.slice(0, 8).map(({ h, w, names }) =>{
-        return names.map(n => {
+      // Flatten pickups and sort by add volume (ones with adds first)
+      const flat = [];
+      noPickup.slice(0, 8).forEach(({ h, w, names }) => {
+        names.forEach(n => {
+          flat.push({ h, w, n, c: trendingCounts[normName(n)] || 0 });
+        });
+      });
+      flat.sort((a, b) => b.c - a.c);
+      html += flat.map(({ h, w, n, c }) => {
           const pl = findByName(n) || {};
-          const c = trendingCounts[normName(n)] || 0;
           const hasAdds = c > 0;
           const adds = hasAdds ? `+${Number(c).toLocaleString()} adds in 24h` : `No adds yet — likely available`;
           const reason = `${h.name} (${shortStatus(h.status)})`;
@@ -673,7 +679,6 @@ function renderInner(){
             <div style="color:var(--accent);font-weight:800;letter-spacing:.12em;font-size:12px;text-transform:uppercase">${header}</div>
             <div class="pname" style="margin-top:6px">${esc(n)} <span style="color:var(--muted);font-weight:400">· ${esc(pl.team||"")}</span></div>
             <div class="pmeta" style="margin-top:4px">${adds} — ${esc(reason)}</div></div>`;
-        }).join("");
       }).join("");
     }
   } else {
