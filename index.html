@@ -367,7 +367,7 @@ function render(){
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
-    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-driven pickups first, then who's hot in the last 24h.</div>";
+    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Fresh injury-driven pickups first, then who's hot in the last 24h.</div>";
     const seen = new Set();
     const cards = [];
     const findByName = n => {
@@ -375,10 +375,13 @@ function render(){
       return Object.values(players).find(p => normName(p.name) === k);
     };
     const statusRank = s => /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3;
-    // 1. Injury-driven targets from the curated map, ranked by severity + relevance
+    // 1. Injury-driven targets from the curated map — fresh news only (5d),
+    // ranked by recency, then severity, then relevance. Last week's news is done.
+    const FRESH_MS = 5*24*3600*1000;
     const hurt = Object.values(players)
-      .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p))
-      .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
+      .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p)
+        && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
+      .sort((a,b) => (b.news_updated - a.news_updated) || (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
     for (const h of hurt){
       const w = WAIVER_MAP[normName(h.name)];
       if (!w) continue;
