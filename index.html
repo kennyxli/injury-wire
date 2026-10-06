@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 40; // bump every push; shown in footer to spot cached code
+const BUILD_V = 41; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -631,7 +631,12 @@ function renderInner(){
       if (seen.has(normName(p.name))) continue;
       if (q && !p.name.toLowerCase().includes(q)) continue;
       seen.add(normName(p.name));
-      const ctx = injuryContextFor(p);
+      let ctx = injuryContextFor(p);
+      // Breakout boost: healthy player + very fresh news + real add volume
+      // (e.g. Monday night 3-TD game — adds lag the performance).
+      const newsAgeH = (Date.now() - (p.news_updated || 0)) / 3600000;
+      const isBreakout = !p.status && newsAgeH < 6 && (Number(t.count) || 0) > 50000;
+      if (isBreakout && ctx.startsWith("📈")) ctx = "🔥 Breakout — fresh news, heavy adds";
       const tier = PICKUP_CONTEXT[normName(p.name)] ? 0 : (ctx.startsWith("📈") ? 2 : 1);
       fillers.push({ name: p.name, pos: p.pos, team: p.team || "FA",
         count: Number(t.count).toLocaleString(), countNum: Number(t.count) || 0,
