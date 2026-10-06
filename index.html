@@ -173,6 +173,7 @@ let players = {};          // id -> normalized
 let prevStatus = {};       // id -> injury_status (for change detection)
 let changes = [];          // {t, name, team, pos, from, to}
 let trending = [];
+let trendingNames = new Set(); // normalized names with active add volume
 let filter = "TRENDING", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
 
@@ -249,10 +250,14 @@ function pickupsOf(w){ return Array.isArray(w.pickup) ? w.pickup : [w.pickup]; }
 function waiverFor(p){
   const w = WAIVER_MAP[normName(p.name)];
   if (w){
-    const names = pickupsOf(w);
-    return `<div class="waiver"><div class="wl">⚡ Waiver target${names.length>1?"s":""}</div>` +
-      names.map(n=>`<div class="wp">${esc(n)}</div>`).join("") +
-      `<div class="wn">${esc(w.note)}</div></div>`;
+    // The curated pickup must be validated by the market — if nobody is
+    // adding him, he's trash or already gone; fall through to the fallback.
+    const live = pickupsOf(w).filter(n => trendingNames.has(normName(n)));
+    if (live.length){
+      return `<div class="waiver"><div class="wl">⚡ Waiver target${live.length>1?"s":""}</div>` +
+        live.map(n=>`<div class="wp">${esc(n)}</div>`).join("") +
+        `<div class="wn">${esc(w.note)}</div></div>`;
+    }
   }
   // Fallback: same team + same position trending adds only.
   // A backup worth adding plays for the same team as the injured guy —
@@ -385,12 +390,10 @@ function render(){
     };
     // Availability: normalized names with active add volume in the last 24h.
     // A curated pickup nobody is adding is already rostered — don't recommend him.
-    const trendingNames = new Set(), trendingCounts = {};
+    const trendingCounts = {};
     for (const t of trending){
       const p = players[t.player_id];
-      if (!p) continue;
-      trendingNames.add(normName(p.name));
-      trendingCounts[normName(p.name)] = t.count;
+      if (p) trendingCounts[normName(p.name)] = t.count;
     }
     const statusRank = s => /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3;
     // 1. Injury-driven targets from the curated map — fresh news only (5d),
@@ -489,6 +492,11 @@ async function refresh(manual){
     }
     detectChanges(next);
     players = next; trending = tr || [];
+    trendingNames = new Set();
+    for (const t of trending){
+      const p = players[t.player_id];
+      if (p) trendingNames.add(normName(p.name));
+    }
     lastOk = Date.now();
     statusEl.innerHTML = `<span class="dot"></span> Live · updated ${timeAgo(lastOk)} · checks every 90s`;
     render();
