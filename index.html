@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 57; // bump every push; shown in footer to spot cached code
+const BUILD_V = 58; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -541,11 +541,11 @@ function renderInner(){
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
-    const wv = window._waiverView || "smart";
+    const wv = window._waiverView || "top";
     html += `<h2>🎯 Top waiver targets</h2>
       <div style="display:flex;gap:8px;margin:0 2px 10px">
-        <button class="tab ${wv==="smart"?"active":""}" data-wv="smart" style="font-size:12px;padding:6px 12px">🧠 Smart picks</button>
         <button class="tab ${wv==="top"?"active":""}" data-wv="top" style="font-size:12px;padding:6px 12px">📈 Top adds</button>
+        <button class="tab ${wv==="smart"?"active":""}" data-wv="smart" style="font-size:12px;padding:6px 12px">🧠 Smart picks</button>
       </div>`;
     if (wv === "top") {
       // Pure volume: top trending by 24h adds, no logic
