@@ -551,9 +551,20 @@ function renderInner(){
       seen.add(pk);
       const pl = findByName(name) || {};
       const cnt = trendingCounts[pk];
+      // Secondary context: other injuries pointing at the same pickup.
+      // Mentioned, but they don't drive the ranking.
+      const others = [];
+      for (const h2 of hurt){
+        if (normName(h2.name) === normName(h.name)) continue;
+        const w2 = WAIVER_MAP[normName(h2.name)];
+        if (!w2 || !pickupsOf(w2).some(n => normName(n) === pk)) continue;
+        if (!others.some(o => normName(o.name) === normName(h2.name))) others.push(h2);
+      }
+      others.sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || ((b.news_updated || 0) - (a.news_updated || 0)));
+      const secondary = others.slice(0, 2).map(o => o.name + " (" + shortStatus(o.status) + ")").join(" + ");
       cards.push({ name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
-        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ") — " + w.note });
+        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (secondary ? " + " + secondary : "") + " — " + w.note });
     }
     // 2. Trending fills the rest — tiered by conviction, not raw hype:
     //    tier 0 = curated pickup (analyst + crowd agree)
