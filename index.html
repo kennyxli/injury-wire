@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 58; // bump every push; shown in footer to spot cached code
+const BUILD_V = 59; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -258,9 +258,10 @@ async function fetchScoreboard(){
   }catch(e){ return {}; }
 }
 function isStaleTag(p){
-  // Weekly designations (Q/Out/Doubtful) older than the final whistle are last
-  // week's news. Sticky ones (IR/PUP/Suspension) stay until officially changed.
-  if (!/QUESTIONABLE|^OUT$|DOUBTFUL/i.test(p.status || "")) return false;
+  // Weekly QUESTIONABLE tags older than the final whistle are last week's news
+  // (player likely played). But OUT/DOUBTFUL are sticky — if Sleeper says a
+  // guy is OUT, he's out until they say otherwise. Don't hide real injuries.
+  if (!/QUESTIONABLE/i.test(p.status || "")) return false;
   const end = teamGameEnd[p.team];
   if (!end) return false;
   return (p.news_updated || 0) < end;
