@@ -254,18 +254,20 @@ function waiverFor(p){
       names.map(n=>`<div class="wp">${esc(n)}</div>`).join("") +
       `<div class="wn">${esc(w.note)}</div></div>`;
   }
-  // Fallback: show the most-added players at the same position right now.
-  // When a starter goes down, the crowd usually finds the backup first.
+  // Fallback: same team + same position trending adds only.
+  // A backup worth adding plays for the same team as the injured guy —
+  // league-wide trending WRs are noise on an unrelated injury.
   const same = trending
     .map(t => ({ info: players[t.player_id], count: t.count }))
-    .filter(x => x.info && x.info.pos === p.pos && normName(x.info.name) !== normName(p.name))
+    .filter(x => x.info && x.info.pos === p.pos && x.info.team && x.info.team === p.team
+      && normName(x.info.name) !== normName(p.name))
     .slice(0, 2);
   if (!same.length) return "";
   const names = same.map(x =>
     `<div class="wp">${esc(x.info.name)} <span style="color:var(--muted);font-weight:400">· ${esc(x.info.team||"FA")}</span></div>
-     <div class="wn">+${Number(x.count).toLocaleString()} adds in 24h — the crowd is already moving.</div>`
+     <div class="wn">+${Number(x.count).toLocaleString()} adds in 24h — same team, same position.</div>`
   ).join("");
-  return `<div class="waiver"><div class="wl">🔥 Trending ${esc(p.pos)} adds</div>${names}</div>`;
+  return `<div class="waiver"><div class="wl">🔥 Trending ${esc(p.team)} ${esc(p.pos)} adds</div>${names}</div>`;
 }
 // Manual hide: viewer sees a player active in-game but the API still lists
 // them as hurt. Tapping hide removes them; any fresh status change clears it.
