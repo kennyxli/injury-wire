@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 50; // bump every push; shown in footer to spot cached code
+const BUILD_V = 51; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -584,10 +584,6 @@ function renderInner(){
         }
       }
     }
-    const drivers = [...byPickup.values()]
-      .filter(e => e.score > 0)
-      .sort((a,b) => (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
-      .slice(0, 6);
     // FAAB tier: role clarity + duration + market validation + talent (proxied by adds).
     // Returns {label, pct} — pct is % of FAAB budget to bid.
     // IMPORTANT: tier is driven by the LEAD injury (the starter who's out),
@@ -615,6 +611,11 @@ function renderInner(){
         return { label: "⚪ Watch", pct: 0 };
       }
     }
+    const drivers = [...byPickup.values()]
+      .filter(e => e.score > 0)
+      .map(e => ({ ...e, _faab: faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: e.lead.status, isBreakout: false }) }))
+      .sort((a,b) => (b._faab.pct - a._faab.pct) || (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
+      .slice(0, 6);
     // Tier 1b: curated injuries whose pickups are under the 50k top-tier gate —
     // to the bottom, latest first. Real adds, just lower volume.
     const withPickup = new Set([...byPickup.keys()].map(k => k));
@@ -645,7 +646,7 @@ function renderInner(){
         secondary.push(o.name + " (" + shortStatus(o.status) + ")");
         if (secondary.length >= 2) break;
       }
-      const faab = faabTier({ leadWeight: e.leadW, adds: e.adds, leadStatus: h.status, isBreakout: false });
+      const faab = e._faab;
       cards.push({ name: e.name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
         faab: faab,
