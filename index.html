@@ -234,6 +234,9 @@ function detectChanges(next){
       if (changes.length > 60) changes.pop();
       if (hidden[id]){ delete hidden[id]; // fresh data overrides a manual hide
         try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
+      const nk = "name:" + normName(p.name);
+      if (hidden[nk]){ delete hidden[nk];
+        try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
     }
   }
   prevStatus = {};
@@ -270,6 +273,9 @@ try{ hidden = JSON.parse(localStorage.getItem("ww_hidden") || "{}"); }catch(e){}
   if (dirty) try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){}
 })();
 
+function hideKey(p){ return p.id || ("name:" + normName(p.name)); }
+function isHidden(p){ return hidden[hideKey(p)] || (p.id && hidden["name:" + normName(p.name)]); }
+
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 // Auto-generate "this week" stories from significant status changes detected
@@ -304,19 +310,20 @@ function render(){
     html += `<h2>🗓️ This week — Week ${WEEK_NUM}</h2>`;
     const wq = query.toLowerCase();
     const stories = WEEK_STORIES.filter(s => !wq || s.name.toLowerCase().includes(wq));
-    html += stories.length ? stories.map(s=>{
+    html += stories.length ? stories.filter(s => !isHidden(s)).map(s=>{
       const w = WAIVER_MAP[normName(s.name)];
       return `<div class="card">
         <div class="row1"><div><div class="pname">${esc(s.name)}</div>
         <div class="pmeta">${esc(s.pos)} · ${esc(s.team)}</div></div>
-        <span class="badge ${badgeClass(s.status)}">${esc(shortStatus(s.status))}</span></div>
+        <span class="badge ${badgeClass(s.status)}">${esc(shortStatus(s.status))}</span>
+        <button class="hidebtn" data-hide="${esc(hideKey(s))}" title="Hide — I see him playing">✕</button></div>
         <div class="inj">${esc(s.note)}</div>
         ${w?`<div class="waiver"><div class="wl">⚡ Waiver target</div>
           <div class="wp">${esc(w.pickup)}</div>
           <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
     }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
     const auto = autoWeekStories().filter(s =>
-      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)) && !hidden[s.id]);
+      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)) && !isHidden(s));
     if (auto.length){
       html += `<h2>📡 Auto-detected this week</h2>`;
       html += auto.map(s=>{
@@ -324,7 +331,8 @@ function render(){
         return `<div class="card">
           <div class="row1"><div><div class="pname">${esc(s.name)}</div>
           <div class="pmeta">${esc(s.pos)} · ${esc(s.team||"")}</div></div>
-          <span class="badge ${badgeClass(s.to)}">${esc(shortStatus(s.to))}</span></div>
+          <span class="badge ${badgeClass(s.to)}">${esc(shortStatus(s.to))}</span>
+          <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
           <div class="inj">${esc(s.from)} → ${esc(s.to)} · ${timeAgo(s.t)}</div>
           ${waiverFor(p)}</div>`;
       }).join("");
@@ -348,7 +356,7 @@ function render(){
     html += "</div>";
   } else {
     let arr = Object.values(players).filter(p =>
-      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !hidden[p.id]);
+      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p));
     if (filter !== "ALL") arr = arr.filter(p => p.pos === filter);
     if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q));
     arr.sort((a,b)=> relevance(a)-relevance(b));
@@ -366,7 +374,7 @@ function render(){
           <div class="row1"><div><div class="pname">${esc(p.name)}</div>
           <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}${p.injury_part? " · "+esc(p.injury_part):""}</div></div>
           <span class="badge ${badgeClass(p.status)}">${esc(shortStatus(p.status))}</span>
-          <button class="hidebtn" data-hide="${esc(p.id)}" title="Hide — I see him playing">✕</button></div>
+          <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
           ${p.injury_notes?`<div class="inj">${esc(p.injury_notes)}</div>`:""}
           ${p.news_updated?`<div class="pmeta" style="margin-top:2px;opacity:.7">Status updated ${timeAgo(p.news_updated)}</div>`:""}
           ${waiverFor(p)}</div>`;
