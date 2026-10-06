@@ -86,7 +86,7 @@
   <button class="tab" data-f="RB">RB</button>
   <button class="tab" data-f="WR">WR</button>
   <button class="tab" data-f="TE">TE</button>
-  <button class="tab" data-f="TRENDING">🔥 Trending</button>
+  <button class="tab" data-f="TRENDING">🎯 Waivers</button>
 </div>
 
 <button class="refresh" id="refreshBtn">⟳ Pull latest now</button>
@@ -276,6 +276,29 @@ try{ hidden = JSON.parse(localStorage.getItem("ww_hidden") || "{}"); }catch(e){}
 function hideKey(p){ return p.id || ("name:" + normName(p.name)); }
 function isHidden(p){ return hidden[hideKey(p)] || (p.id && hidden["name:" + normName(p.name)]); }
 
+function titleCase(s){ return (s||"").split(" ").map(w=>w? w[0].toUpperCase()+w.slice(1):w).join(" "); }
+
+// Reverse index: pickup name -> whose injury is driving the adds.
+const PICKUP_CONTEXT = {};
+for (const k of Object.keys(WAIVER_MAP)){
+  const w = WAIVER_MAP[k];
+  const pk = normName(w.pickup);
+  (PICKUP_CONTEXT[pk] = PICKUP_CONTEXT[pk] || []).push({ injured: k, note: w.note });
+}
+
+function injuryContextFor(p){
+  const pk = normName(p.name);
+  if (PICKUP_CONTEXT[pk]){
+    const c = PICKUP_CONTEXT[pk][0];
+    return "⚡ " + titleCase(c.injured) + " fill-in — " + c.note;
+  }
+  const hurt = Object.values(players).find(x =>
+    x.team && x.team === p.team && x.pos === p.pos && x.status &&
+    /OUT|IR|DOUBTFUL|PUP|SUSP/i.test(x.status) && normName(x.name) !== pk);
+  if (hurt) return "🏥 With " + hurt.name + " (" + shortStatus(hurt.status) + ")";
+  return "📈 Breakout / role bump — the crowd is buying";
+}
+
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 // Auto-generate "this week" stories from significant status changes detected
@@ -344,16 +367,18 @@ function render(){
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
-    html += "<h2>🔥 Most-added players (24h)</h2><div class='card'>";
-    const items = trending.filter(t=>{
-      const p = players[t.player_id];
-      return p && (!q || p.name.toLowerCase().includes(q));
-    });
-    html += items.length ? items.map(t=>{
-      const p = players[t.player_id];
-      return `<div class="trend"><span><b>${esc(p.name)}</b> <span style="color:var(--muted);font-size:12px">${esc(p.pos)} · ${esc(p.team||"FA")}</span></span><span class="adds">+${Number(t.count).toLocaleString()}</span></div>`;
-    }).join("") : `<div class="empty">Loading trending…</div>`;
-    html += "</div>";
+    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Most-added skill players in the last 24h — with why they're moving.</div>";
+    const items = trending
+      .map(t => ({ t, p: players[t.player_id] }))
+      .filter(x => x.p && POSITIONS.includes(x.p.pos) && (!q || x.p.name.toLowerCase().includes(q)))
+      .slice(0, 12);
+    html += items.length ? items.map((x, i)=>
+      `<div class="card">
+        <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${esc(x.p.name)}</div>
+        <div class="pmeta">${esc(x.p.pos)} · ${esc(x.p.team||"FA")}</div></div>
+        <span class="adds" style="color:var(--green);font-weight:800">+${Number(x.t.count).toLocaleString()}</span></div>
+        <div class="inj">${esc(injuryContextFor(x.p))}</div></div>`
+    ).join("") : `<div class="empty">Loading trending…</div>`;
   } else {
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p));
