@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 54; // bump every push; shown in footer to spot cached code
+const BUILD_V = 55; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -541,7 +541,26 @@ function renderInner(){
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
-    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Fresh injury-driven pickups first, then who's hot in the last 24h.</div>";
+    const wv = window._waiverView || "smart";
+    html += `<h2>🎯 Top waiver targets</h2>
+      <div style="display:flex;gap:8px;margin:0 2px 10px">
+        <button class="tab ${wv==="smart"?"active":""}" data-wv="smart" style="font-size:12px;padding:6px 12px">🧠 Smart picks</button>
+        <button class="tab ${wv==="top"?"active":""}" data-wv="top" style="font-size:12px;padding:6px 12px">📈 Top adds</button>
+      </div>`;
+    if (wv === "top") {
+      // Pure volume: top trending by 24h adds, no logic
+      html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Most-added players in the last 24h, straight from Sleeper.</div>";
+      const top = [...trending].slice(0, 15);
+      html += top.map((t, i) => {
+        const p = players[t.player_id] || {};
+        if (!p.name || !POSITIONS.includes(p.pos)) return "";
+        return `<div class="card"><div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(p.name)}</div>
+          <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}</div></div>
+          <span class="adds" style="color:var(--green);font-weight:800">+${Number(t.count).toLocaleString()}</span></div></div>`;
+      }).join("");
+      // Deeper adds section still shows below
+    } else {
+    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Fresh injury-driven pickups first, then who's hot in the last 24h.</div>";
     const seen = new Set();
     const cards = [];
     const findByName = n => {
@@ -730,6 +749,7 @@ function renderInner(){
             <div class="pmeta" style="margin-top:4px">${adds} — ${esc(reason)}</div></div>`;
       }).join("");
     }
+    } // end smart view else
   } else {
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p) && !isStaleTag(p));
@@ -804,8 +824,13 @@ async function refresh(manual){
 
 $("tabs").addEventListener("click", e=>{
   const b = e.target.closest(".tab"); if(!b) return;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll("#tabs .tab").forEach(t=>t.classList.remove("active"));
   b.classList.add("active"); filter = b.dataset.f; render();
+});
+// Waiver sub-view toggle (Smart picks vs Top adds)
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-wv]"); if(!b) return;
+  window._waiverView = b.dataset.wv; render();
 });
 listEl.addEventListener("click", e=>{
   const hb = e.target.closest("[data-hide]");
