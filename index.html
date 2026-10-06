@@ -368,7 +368,7 @@ function injuryContextFor(p){
   // All hurt teammates at the same position — derived live, so every player
   // in a banged-up unit gets the full picture with zero manual upkeep.
   const hurt = Object.values(players).filter(x =>
-    x.team && x.team === p.team && x.pos === p.pos && x.status && !isStaleQ(x) &&
+    x.team && x.team === p.team && x.pos === p.pos && x.status && !isStaleTag(x) &&
     /OUT|IR|DOUBTFUL|PUP|SUSP|QUESTIONABLE/i.test(x.status) && normName(x.name) !== pk);
   if (hurt.length){
     hurt.sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
@@ -548,7 +548,7 @@ function renderInner(){
     const FRESH_MS = 5*24*3600*1000;
     const hurt = Object.values(players)
       .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p)
-        && !isStaleQ(p) && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
+        && !isStaleTag(p) && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
       .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (b.news_updated - a.news_updated) || (relevance(a) - relevance(b)));
     // Group curated pickups: every contributing injury scores (severity × recency)
     // and the scores compound. The lead driver is the highest-weight injury.
@@ -625,7 +625,7 @@ function renderInner(){
     ).join("") : `<div class="empty">Loading waiver targets…</div>`;
   } else {
     let arr = Object.values(players).filter(p =>
-      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p) && !isStaleQ(p));
+      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p) && !isStaleTag(p));
     // Browsing shows the last 14 days of injury news — older than that isn't actionable.
     // Searching digs through everything.
     if (!q){
