@@ -310,10 +310,15 @@ function injuryContextFor(p){
     const c = PICKUP_CONTEXT[pk][0];
     return "⚡ " + titleCase(c.injured) + " fill-in — " + c.note;
   }
-  const hurt = Object.values(players).find(x =>
+  // All hurt teammates at the same position — derived live, so every player
+  // in a banged-up unit gets the full picture with zero manual upkeep.
+  const hurt = Object.values(players).filter(x =>
     x.team && x.team === p.team && x.pos === p.pos && x.status &&
     /OUT|IR|DOUBTFUL|PUP|SUSP|QUESTIONABLE/i.test(x.status) && normName(x.name) !== pk);
-  if (hurt) return "🏥 With " + hurt.name + " (" + shortStatus(hurt.status) + ")";
+  if (hurt.length){
+    hurt.sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
+    return "🏥 With " + hurt.slice(0, 3).map(h => h.name + " (" + shortStatus(h.status) + ")").join(" & ");
+  }
   return "📈 Breakout / role bump — the crowd is buying";
 }
 
