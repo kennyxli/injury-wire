@@ -85,6 +85,7 @@
 <div class="tabs" id="tabs">
   <button class="tab active" data-f="TRENDING">🎯 Waivers</button>
   <button class="tab" data-f="CHANGES">⚡ Latest</button>
+  <button class="tab" data-f="NEWS">📰 News</button>
   <button class="tab" data-f="ALL">All</button>
   <button class="tab" data-f="QB">QB</button>
   <button class="tab" data-f="RB">RB</button>
@@ -185,6 +186,7 @@ let prevStatus = {};       // id -> injury_status (for change detection)
 let prevNews = {};         // id -> news_updated timestamp (for news-update detection)
 let changes = [];          // {t, name, team, pos, from, to} or {t, name, team, pos, news:true}
 let trending = [];
+let nflNews = [];          // ESPN NFL news articles {headline, desc, published, link}
 let trendingNames = new Set(); // normalized names with active add volume
 let filter = "TRENDING", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
@@ -235,6 +237,34 @@ async function fetchTrending(){
     if (!r.ok) return [];
     return r.json();
   }catch(e){ return []; }
+}
+
+// ESPN NFL news wire — real-time headlines with reporter attribution,
+// like Underdog's feed. Matched to players by name for expandable cards.
+async function fetchNews(){
+  try{
+    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=40");
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.articles || []).map(a => ({
+      headline: a.headline || "",
+      desc: a.description || "",
+      published: new Date(a.published).getTime() || 0,
+      link: (a.links && a.links.web && a.links.web.href) || ""
+    })).filter(a => a.headline && a.published);
+  }catch(e){ return []; }
+}
+
+// Match a news article to a player by name in headline/description.
+function newsForPlayer(pname){
+  const nn = normName(pname);
+  const parts = nn.split(" ").filter(w => w.length > 2);
+  if (parts.length < 2) return [];
+  const last = parts[parts.length - 1];
+  return nflNews.filter(a => {
+    const t = normName(a.headline + " " + a.desc);
+    return t.includes(nn) || (t.includes(parts[0]) && t.includes(last));
+  }).slice(0, 3);
 }
 
 // Which teams have finished this week's game (ESPN scoreboard).
@@ -573,6 +603,30 @@ function renderInner(){
       : `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
+  } else if (filter === "NEWS"){
+    html += "<h2>📰 NFL News Wire</h2>";
+    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Real-time headlines, refreshed every 90s.</div>";
+    const items = [...nflNews].sort((a,b)=>b.published-a.published).slice(0,30);
+    html += items.length ? items.map(a=>{
+      const pub = timeAgo(a.published);
+      // Try to link to a player card
+      let plink = "";
+      for (const id in players){
+        const p = players[id];
+        if (!p.name) continue;
+        const nn = normName(p.name);
+        const t = normName(a.headline + " " + a.desc);
+        const parts = nn.split(" ").filter(w=>w.length>2);
+        if (parts.length >= 2 && (t.includes(nn) || (t.includes(parts[0]) && t.includes(parts[parts.length-1])))){
+          plink = `<span class="badge ${badgeClass(p.status)}" style="margin-left:6px">${esc(p.name)}</span>`;
+          break;
+        }
+      }
+      const open = a.link ? `<a href="${esc(a.link)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">` : "";
+      const close = a.link ? "</a>" : "";
+      return `<div class="change">${open}<b>${esc(a.headline)}</b>${close}${plink}<br>
+        <span style="color:var(--muted);font-size:12px">${a.desc ? esc(a.desc.slice(0,140)) + (a.desc.length>140?"…":"") + " · " : ""}<time>${pub}</time></span></div>`;
+    }).join("") : `<div class="empty">No news yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
     const wv = window._waiverView || "top";
     html += `<h2>🎯 Top waiver targets</h2>
@@ -815,6 +869,12 @@ function renderInner(){
           <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
           ${p.injury_notes?`<div class="inj">${esc(p.injury_notes)}</div>`:""}
           ${p.news_updated?`<div class="pmeta" style="margin-top:2px;opacity:.7">Status updated ${timeAgo(p.news_updated)}</div>`:""}
+          ${(()=>{ const pn = newsForPlayer(p.name);
+            return pn.length ? `<button class="newstoggle" data-news="${esc(p.id)}" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;padding:6px 0;cursor:pointer">📰 ${pn.length} recent headline${pn.length>1?"s":""} ▾</button>
+            <div class="newsbody" id="nb-${esc(p.id)}" style="display:none;margin-top:4px">${pn.map(a=>
+              `<div style="padding:8px 0;border-top:1px solid #1e293b"><div style="font-size:13px;font-weight:600">${esc(a.headline)}</div>
+               <div style="font-size:12px;color:var(--muted);margin-top:2px">${a.desc?esc(a.desc.slice(0,120))+(a.desc.length>120?"…":"")+" · ":""}${timeAgo(a.published)}</div></div>`
+            ).join("")}</div>` : ""; })()}
           ${waiverFor(p)}</div>`;
       }).join("");
     }
@@ -829,7 +889,7 @@ let lastOk = 0;
 async function refresh(manual){
   try{
     if (manual) statusEl.textContent = "Pulling latest…";
-    const [pd, tr, sb] = await Promise.all([fetchPlayers(), fetchTrending(), fetchScoreboard()]);
+    const [pd, tr, sb, nw] = await Promise.all([fetchPlayers(), fetchTrending(), fetchScoreboard(), fetchNews()]);
     const next = {};
     for (const id in pd){
       const p = pd[id];
@@ -842,6 +902,7 @@ async function refresh(manual){
     }
     detectChanges(next);
     players = next; trending = tr || [];
+    if (nw && nw.length) nflNews = nw;
     teamGameEnd = sb || {};
     trendingNames = new Set();
     for (const t of trending){
@@ -873,6 +934,16 @@ listEl.addEventListener("click", e=>{
     hidden[hb.dataset.hide] = Date.now();
     try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){}
     render();
+    return;
+  }
+  const nt = e.target.closest("[data-news]");
+  if (nt){
+    const body = document.getElementById("nb-" + nt.dataset.news);
+    if (body){
+      const open = body.style.display === "none";
+      body.style.display = open ? "block" : "none";
+      nt.innerHTML = nt.innerHTML.replace(open ? "▾" : "▴", open ? "▴" : "▾");
+    }
     return;
   }
   if (e.target.closest("#restoreHidden")){
