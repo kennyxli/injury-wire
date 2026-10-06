@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 55; // bump every push; shown in footer to spot cached code
+const BUILD_V = 56; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -554,9 +554,11 @@ function renderInner(){
       html += top.map((t, i) => {
         const p = players[t.player_id] || {};
         if (!p.name || !POSITIONS.includes(p.pos)) return "";
+        const ctx = injuryContextFor(p);
         return `<div class="card"><div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(p.name)}</div>
           <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}</div></div>
-          <span class="adds" style="color:var(--green);font-weight:800">+${Number(t.count).toLocaleString()}</span></div></div>`;
+          <span class="adds" style="color:var(--green);font-weight:800">+${Number(t.count).toLocaleString()}</span></div>
+          <div class="inj" style="margin-top:4px;opacity:.8">${esc(ctx)}</div></div>`;
       }).join("");
       // Deeper adds section still shows below
     } else {
