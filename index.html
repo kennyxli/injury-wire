@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 61; // bump every push; shown in footer to spot cached code
+const BUILD_V = 67; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -263,13 +263,14 @@ const INJURY_KW = ["injur", "out for", "sidelined", "questionable", "doubtful",
   "hamstring", "acl", "mcl", "ankle", "knee", "shoulder", "inactive", "will miss",
   "expected to miss", "week-to-week", "day-to-day", "ruled out", "not expected to play",
   "unlikely to play", "game-time decision", "limited in practice", "did not practice",
-  "dnps", "pup", "suspended"];
+  "dnps", "pup", "suspended", "failed physical", "after physical", "retire",
+  "waived/injured", "injury settlement"];
 function injuryScore(a){
   const t = (a.headline + " " + a.desc).toLowerCase();
   let s = 0;
   for (const k of INJURY_KW) if (t.includes(k)) s += 2;
-  // Reporter-attributed news (Rap:, Schefter:) is usually breaking — boost it
-  if (/^(rap|schefter|schultz|pelissero|glazer)/i.test(a.headline.trim())) s += 3;
+  // Reporter-attributed news is usually breaking — boost it
+  if (/(rapoport|schefter|schultz|pelissero|glazer|rapsheet|adamschefter)/i.test(t.slice(0,60))) s += 3;
   return s;
 }
 // Match a news article to a player by name in headline/description.
