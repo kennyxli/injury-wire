@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 59; // bump every push; shown in footer to spot cached code
+const BUILD_V = 60; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -398,6 +398,7 @@ function autoWeekStories(){
   const badTo = ["OUT","IR","DOUBTFUL","PUP","SUSP"];
   const seen = {};
   const out = [];
+  // 1) Changes we witnessed (status worsened in last 7 days)
   for (const c of changes){
     if (c.t < weekAgo || seen[c.id]) continue;
     if (isChangeStale(c)) continue;
@@ -408,6 +409,18 @@ function autoWeekStories(){
     if (!worsened) continue;
     seen[c.id] = 1;
     out.push(c);
+  }
+  // 2) Currently hurt with fresh news — catches injuries from before we started polling
+  for (const p of Object.values(players)){
+    if (seen[p.id]) continue;
+    if (!POSITIONS.includes(p.pos)) continue;
+    const st = (p.status || "").toUpperCase();
+    if (!badTo.some(k => st.includes(k))) continue;
+    if (isStaleTag(p)) continue;
+    if (!p.news_updated || p.news_updated < weekAgo) continue;
+    if (isHidden(p)) continue;
+    seen[p.id] = 1;
+    out.push({ id: p.id, name: p.name, to: p.status, t: p.news_updated });
   }
   out.sort((a,b)=>{
     const ra = players[a.id] ? relevance(players[a.id]) : 99999;
