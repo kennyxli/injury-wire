@@ -433,6 +433,12 @@ function render(){
   } else {
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p));
+    // Browsing shows the last 14 days of injury news — older than that isn't actionable.
+    // Searching digs through everything.
+    if (!q){
+      const BROWSE_FRESH_MS = 14*24*3600*1000;
+      arr = arr.filter(p => p.news_updated && (Date.now() - p.news_updated) < BROWSE_FRESH_MS);
+    }
     if (filter !== "ALL") arr = arr.filter(p => p.pos === filter);
     if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q));
     arr.sort((a,b)=> relevance(a)-relevance(b));
