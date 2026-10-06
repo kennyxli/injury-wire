@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 45; // bump every push; shown in footer to spot cached code
+const BUILD_V = 46; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -147,12 +147,12 @@ const WAIVER_MAP = {
   "josh jacobs":      { pickup:["MarShawn Lloyd","Kaleb Johnson"], note:"GB backfield splits if Jacobs sits — Lloyd is the nominal RB2, Johnson the upside rookie per ESPN." },
   "breece hall":      { pickup:"Braelon Allen", note:"Takes over the Jets' lead-back role. Isaiah Davis behind him." },
   "jadarian price":   { pickup:"Emanuel Wilson", note:"Seattle's RB2 with Price on IR — clear backfield bump behind the starter." },
-  "de'von achane":    { pickup:["Jaylen Wright","Ollie Gordon II"], note:"Committee with Achane done for the year (knee) — Wright leads early downs, Gordon mixes in." },
+  "devon achane":    { pickup:["Jaylen Wright","Ollie Gordon II"], note:"Committee with Achane done for the year (knee) — Wright leads early downs, Gordon mixes in." },
   "rico dowdle":      { pickup:"Travis Homer", note:"Pittsburgh's RB2 behind Jaylen Warren with Dowdle out (toe)." },
   "rachaad white":    { pickup:"Kaytron Allen", note:"Next up in Washington behind Jacory Croskey-Merritt with White out." },
   "isiah pacheco":    { pickup:"Sione Vaki", note:"Next healthy back behind Jahmyr Gibbs in Detroit (Pacheco on IR). Jacob Saylors is RB4." },
   "kyle monangai":    { pickup:"Roschon Johnson", note:"Absorbs short-yardage and goal-line work in Chicago if Monangai sits; Swift gets more volume." },
-  "ja'marr chase":    { pickup:"Dohnte Meyers", note:"Cincinnati's WR3 with a huge role — Chase is out, Higgins is questionable, Iosivas is on IR." },
+  "jamarr chase":    { pickup:"Dohnte Meyers", note:"Cincinnati's WR3 with a huge role — Chase is out, Higgins is questionable, Iosivas is on IR." },
   "tee higgins":      { pickup:"Dohnte Meyers", note:"Would start for Cincinnati if Higgins sits. Already has a real role." },
   "a.j. brown":       { pickup:"Romeo Doubs", note:"$68M free-agent signing steps into New England's WR1 role. Mack Hollins is the red-zone veteran behind him." },
   "mack hollins":     { pickup:"Romeo Doubs", note:"Doubs' role grows with Hollins questionable — already New England's WR1 with Brown on IR." },
@@ -191,7 +191,7 @@ try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(
 const $ = id => document.getElementById(id);
 const listEl = $("list"), statusEl = $("status");
 
-function normName(n){ return (n||"").toLowerCase().trim(); }
+function normName(n){ return (n||"").toLowerCase().replace(/[''']/g, "").trim(); }
 function badgeClass(s){
   s = (s||"").toUpperCase();
   if (s.includes("QUESTIONABLE")) return "b-Q";
