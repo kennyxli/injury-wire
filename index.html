@@ -135,9 +135,9 @@ const WAIVER_MAP = {
   "alvin kamara":     { pickup:"Kendre Miller", note:"In line for the lead-back role with Kamara banged up and Etienne on IR. CJ Donaldson is the deep stash." },
   "travis etienne":   { pickup:"Kendre Miller", note:"Etienne on IR (hamstring, min. 4 games) in New Orleans. Miller leads the backfield with Kamara also hurt." },
   "jeremiyah love":   { pickup:"Tyler Allgeier", note:"Veteran RB2 who led Arizona's backfield in snaps Weeks 1-2. Lead back if the rookie sits." },
-  "josh jacobs":      { pickup:"MarShawn Lloyd", note:"Nominal GB RB2 all season; rookie Kaleb Johnson also in the mix per ESPN — Lloyd is the safe add, Johnson the upside swing." },
+  "josh jacobs":      { pickup:["MarShawn Lloyd","Kaleb Johnson"], note:"GB backfield splits if Jacobs sits — Lloyd is the nominal RB2, Johnson the upside rookie per ESPN." },
   "breece hall":      { pickup:"Braelon Allen", note:"Takes over the Jets' lead-back role. Isaiah Davis behind him." },
-  "de'von achane":    { pickup:"Jaylen Wright", note:"Lead back with Achane done for the year (knee). Ollie Gordon II behind him." },
+  "de'von achane":    { pickup:["Jaylen Wright","Ollie Gordon II"], note:"Committee with Achane done for the year (knee) — Wright leads early downs, Gordon mixes in." },
   "rico dowdle":      { pickup:"Travis Homer", note:"Pittsburgh's RB2 behind Jaylen Warren with Dowdle out (toe)." },
   "rachaad white":    { pickup:"Kaytron Allen", note:"Next up in Washington behind Jacory Croskey-Merritt with White out." },
   "isiah pacheco":    { pickup:"Sione Vaki", note:"Next healthy back behind Jahmyr Gibbs in Detroit (Pacheco on IR). Jacob Saylors is RB4." },
@@ -151,7 +151,7 @@ const WAIVER_MAP = {
   "devonta smith":    { pickup:"Hollywood Brown", note:"Listed directly behind Smith on Philadelphia's depth chart. Makai Lemon gets a bump in 3-WR sets." },
   "rashee rice":      { pickup:"Jalen Royals", note:"Next man up in Kansas City behind Rice (Thornton is also hurt). Worthy already starts." },
   "terry mclaurin":   { pickup:"Dyami Brown", note:"Listed directly behind McLaurin at X receiver in Washington. Stefon Diggs also on the roster." },
-  "jayden reed":      { pickup:"Bo Melton", note:"Listed directly behind Reed at WR2 in Green Bay; rookie Matthew Golden also gets a bump." },
+  "jayden reed":      { pickup:["Bo Melton","Matthew Golden"], note:"Reed's WR2 role splits — Melton is the listed backup, Golden the rookie riser." },
   "keenan allen":     { pickup:"Josh Downs", note:"Clear-cut WR1 for Indianapolis with Allen out. Newly signed Darius Slayton is the riser behind him." },
   "alec pierce":      { pickup:"Josh Downs", note:"Already the target leader with Pierce on IR." },
   "caleb douglas":    { pickup:"Ryan Miller", note:"Listed as Douglas's direct backup on Miami's official depth chart." },
@@ -244,11 +244,16 @@ function detectChanges(next){
   try{ localStorage.setItem("ww_prev", JSON.stringify(prevStatus)); }catch(e){}
 }
 
+function pickupsOf(w){ return Array.isArray(w.pickup) ? w.pickup : [w.pickup]; }
+
 function waiverFor(p){
   const w = WAIVER_MAP[normName(p.name)];
-  if (w) return `<div class="waiver"><div class="wl">⚡ Waiver target</div>
-    <div class="wp">${esc(w.pickup)}</div>
-    <div class="wn">${esc(w.note)}</div></div>`;
+  if (w){
+    const names = pickupsOf(w);
+    return `<div class="waiver"><div class="wl">⚡ Waiver target${names.length>1?"s":""}</div>` +
+      names.map(n=>`<div class="wp">${esc(n)}</div>`).join("") +
+      `<div class="wn">${esc(w.note)}</div></div>`;
+  }
   // Fallback: show the most-added players at the same position right now.
   // When a starter goes down, the crowd usually finds the backup first.
   const same = trending
@@ -282,8 +287,10 @@ function titleCase(s){ return (s||"").split(" ").map(w=>w? w[0].toUpperCase()+w.
 const PICKUP_CONTEXT = {};
 for (const k of Object.keys(WAIVER_MAP)){
   const w = WAIVER_MAP[k];
-  const pk = normName(w.pickup);
-  (PICKUP_CONTEXT[pk] = PICKUP_CONTEXT[pk] || []).push({ injured: k, note: w.note });
+  for (const name of pickupsOf(w)){
+    const pk = normName(name);
+    (PICKUP_CONTEXT[pk] = PICKUP_CONTEXT[pk] || []).push({ injured: k, note: w.note });
+  }
 }
 
 function injuryContextFor(p){
@@ -341,8 +348,8 @@ function render(){
         <span class="badge ${badgeClass(s.status)}">${esc(shortStatus(s.status))}</span>
         <button class="hidebtn" data-hide="${esc(hideKey(s))}" title="Hide — I see him playing">✕</button></div>
         <div class="inj">${esc(s.note)}</div>
-        ${w?`<div class="waiver"><div class="wl">⚡ Waiver target</div>
-          <div class="wp">${esc(w.pickup)}</div>
+        ${w?`<div class="waiver"><div class="wl">⚡ Waiver target${pickupsOf(w).length>1?"s":""}</div>
+          ${pickupsOf(w).map(n=>`<div class="wp">${esc(n)}</div>`).join("")}
           <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
     }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
     const auto = autoWeekStories().filter(s =>
@@ -385,12 +392,12 @@ function render(){
     for (const h of hurt){
       const w = WAIVER_MAP[normName(h.name)];
       if (!w) continue;
-      const pk = normName(w.pickup);
-      if (seen.has(pk)) continue;
-      seen.add(pk);
-      const pl = findByName(w.pickup) || {};
-      cards.push({ name: w.pickup, pos: pl.pos || "", team: pl.team || "", count: null,
-        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ") — " + w.note });
+      const names = pickupsOf(w);
+      if (names.some(n => seen.has(normName(n)))) continue;
+      names.forEach(n => seen.add(normName(n)));
+      const pl = findByName(names[0]) || {};
+      cards.push({ name: names.join(" / "), pos: pl.pos || "", team: pl.team || "", count: null,
+        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (names.length>1 ? " committee" : "") + " — " + w.note });
       if (cards.length >= 6) break;
     }
     // 2. Trending adds fill the rest
