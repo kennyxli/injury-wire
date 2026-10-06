@@ -111,7 +111,7 @@ const WEEK_STORIES = [
   { name:"Tank Bigsby", team:"PHI", pos:"RB", status:"IR",
     note:"Core-muscle surgery, ~6 weeks on IR. Eagles backfield is Shipley alone." },
   { name:"Alvin Kamara", team:"NO", pos:"RB", status:"Questionable",
-    note:"Limped off on MNF vs Falcons (3rd Q, no helmet return). Diagnosis pending — Kendre Miller next man up." },
+    note:"Limped off on MNF vs Falcons (3rd Q) but returned to the game. Still listed Q on the official report — Kendre Miller is the handcuff." },
   { name:"Ladd McConkey", team:"LAC", pos:"WR", status:"Questionable",
     note:"Foot — week-to-week since leaving the Week 4 game early with 0 catches." },
   { name:"Tyquan Thornton", team:"KC", pos:"WR", status:"IR",
@@ -312,6 +312,7 @@ function render(){
           <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}${p.injury_part? " · "+esc(p.injury_part):""}</div></div>
           <span class="badge ${badgeClass(p.status)}">${esc(shortStatus(p.status))}</span></div>
           ${p.injury_notes?`<div class="inj">${esc(p.injury_notes)}</div>`:""}
+          ${p.news_updated?`<div class="pmeta" style="margin-top:2px;opacity:.7">Status updated ${timeAgo(p.news_updated)}</div>`:""}
           ${waiverFor(p)}</div>`;
       }).join("");
     }
@@ -332,6 +333,7 @@ async function refresh(manual){
       next[id] = { id, name: p.full_name || (p.first_name+" "+p.last_name),
         pos: p.position, team: p.team || "", status: p.injury_status || "",
         injury_part: p.injury_body_part || "", injury_notes: p.injury_notes || "",
+        news_updated: p.news_updated || 0,
         search_rank: p.search_rank || 99999 };
     }
     detectChanges(next);
