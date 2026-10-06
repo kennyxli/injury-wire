@@ -39,6 +39,9 @@
   .pmeta{font-size:12px; color:var(--muted); margin-top:2px;}
   .badge{flex:0 0 auto; font-size:11px; font-weight:800; padding:5px 10px; border-radius:999px;
     text-transform:uppercase; letter-spacing:.5px;}
+  .hidebtn{flex:0 0 auto; background:none; border:none; color:var(--muted); font-size:14px;
+    cursor:pointer; padding:6px 4px; opacity:.55;}
+  .hidebtn:active{opacity:1; transform:scale(1.25);}
   .b-Q{ background:rgba(234,179,8,.15); color:var(--yellow); border:1px solid var(--yellow);}
   .b-D{ background:rgba(249,115,22,.15); color:var(--orange); border:1px solid var(--orange);}
   .b-O{ background:rgba(239,68,68,.15); color:var(--red); border:1px solid var(--red);}
@@ -229,6 +232,8 @@ function detectChanges(next){
       changes.unshift({ t: now, name: p.name, team: p.team, pos: p.pos,
         from: prev || "Healthy", to: p.status || "Healthy", id });
       if (changes.length > 60) changes.pop();
+      if (hidden[id]){ delete hidden[id]; // fresh data overrides a manual hide
+        try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
     }
   }
   prevStatus = {};
@@ -254,6 +259,17 @@ function waiverFor(p){
   ).join("");
   return `<div class="waiver"><div class="wl">🔥 Trending ${esc(p.pos)} adds</div>${names}</div>`;
 }
+// Manual hide: viewer sees a player active in-game but the API still lists
+// them as hurt. Tapping hide removes them; any fresh status change clears it.
+let hidden = {};
+try{ hidden = JSON.parse(localStorage.getItem("ww_hidden") || "{}"); }catch(e){}
+(function pruneHidden(){
+  const now = Date.now();
+  let dirty = false;
+  for (const id in hidden) if (now - hidden[id] > 24*3600*1000){ delete hidden[id]; dirty = true; }
+  if (dirty) try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){}
+})();
+
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 // Auto-generate "this week" stories from significant status changes detected
@@ -300,7 +316,7 @@ function render(){
           <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
     }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
     const auto = autoWeekStories().filter(s =>
-      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)));
+      !WEEK_STORIES.some(w => normName(w.name) === normName(s.name)) && !hidden[s.id]);
     if (auto.length){
       html += `<h2>📡 Auto-detected this week</h2>`;
       html += auto.map(s=>{
@@ -332,7 +348,7 @@ function render(){
     html += "</div>";
   } else {
     let arr = Object.values(players).filter(p =>
-      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status));
+      POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !hidden[p.id]);
     if (filter !== "ALL") arr = arr.filter(p => p.pos === filter);
     if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q));
     arr.sort((a,b)=> relevance(a)-relevance(b));
@@ -349,7 +365,8 @@ function render(){
         return `<div class="card${isNew?" new":""}">
           <div class="row1"><div><div class="pname">${esc(p.name)}</div>
           <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}${p.injury_part? " · "+esc(p.injury_part):""}</div></div>
-          <span class="badge ${badgeClass(p.status)}">${esc(shortStatus(p.status))}</span></div>
+          <span class="badge ${badgeClass(p.status)}">${esc(shortStatus(p.status))}</span>
+          <button class="hidebtn" data-hide="${esc(p.id)}" title="Hide — I see him playing">✕</button></div>
           ${p.injury_notes?`<div class="inj">${esc(p.injury_notes)}</div>`:""}
           ${p.news_updated?`<div class="pmeta" style="margin-top:2px;opacity:.7">Status updated ${timeAgo(p.news_updated)}</div>`:""}
           ${waiverFor(p)}</div>`;
@@ -357,6 +374,8 @@ function render(){
     }
     if (!arr.length) html = `<div class="empty">No injuries match. 🎉</div>`;
   }
+  const hiddenCount = Object.keys(hidden).length;
+  if (hiddenCount) html = `<div class="pmeta" style="margin:4px 2px 8px;opacity:.8">${hiddenCount} hidden by you · <a href="#" id="restoreHidden" style="color:var(--accent)">restore</a></div>` + html;
   listEl.innerHTML = html;
 }
 
@@ -390,6 +409,21 @@ $("tabs").addEventListener("click", e=>{
   const b = e.target.closest(".tab"); if(!b) return;
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   b.classList.add("active"); filter = b.dataset.f; render();
+});
+listEl.addEventListener("click", e=>{
+  const hb = e.target.closest("[data-hide]");
+  if (hb){
+    hidden[hb.dataset.hide] = Date.now();
+    try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){}
+    render();
+    return;
+  }
+  if (e.target.closest("#restoreHidden")){
+    e.preventDefault();
+    hidden = {};
+    try{ localStorage.setItem("ww_hidden", "{}"); }catch(e){}
+    render();
+  }
 });
 $("search").addEventListener("input", e=>{ query = e.target.value; render(); });
 $("refreshBtn").addEventListener("click", ()=>refresh(true));
