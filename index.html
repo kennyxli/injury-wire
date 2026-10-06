@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Waiver Wire">
 <meta name="theme-color" content="#0a0e14">
@@ -251,8 +254,10 @@ async function fetchScoreboard(){
     return map;
   }catch(e){ return {}; }
 }
-function isStaleQ(p){
-  if (!/QUESTIONABLE/i.test(p.status || "")) return false;
+function isStaleTag(p){
+  // Weekly designations (Q/Out/Doubtful) older than the final whistle are last
+  // week's news. Sticky ones (IR/PUP/Suspension) stay until officially changed.
+  if (!/QUESTIONABLE|^OUT$|DOUBTFUL/i.test(p.status || "")) return false;
   const end = teamGameEnd[p.team];
   if (!end) return false;
   return (p.news_updated || 0) < end;
@@ -324,6 +329,17 @@ function isHidden(p){ return hidden[hideKey(p)] || (p.id && hidden["name:" + nor
 
 function titleCase(s){ return (s||"").split(" ").map(w=>w? w[0].toUpperCase()+w.slice(1):w).join(" "); }
 function statusRank(s){ return /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3; }
+// Waiver driver scoring: severity × recency, summed across every contributing
+// injury. A recent secondary (Bigsby) compounds the ranking; a stale one
+// (Brown's weeks-old IR) is mentioned but scores zero.
+const STALE_DRIVERS = new Set(["a.j. brown"]);
+function driverWeight(h){
+  if (STALE_DRIVERS.has(normName(h.name))) return 0;
+  const sevW = /IR|PUP/i.test(h.status) ? 4 : /OUT/i.test(h.status) ? 3 : /DOUBTFUL/i.test(h.status) ? 2 : 1;
+  const ageH = (Date.now() - (h.news_updated || 0)) / 3600000;
+  const recW = ageH < 48 ? 1 : ageH < 96 ? 0.5 : ageH < 120 ? 0.25 : 0;
+  return sevW * recW;
+}
 
 // Reverse index: pickup name -> whose injury is driving the adds.
 const PICKUP_CONTEXT = {};
@@ -526,45 +542,48 @@ function renderInner(){
       .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p)
         && !isStaleQ(p) && p.news_updated && (Date.now() - p.news_updated) < FRESH_MS)
       .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (b.news_updated - a.news_updated) || (relevance(a) - relevance(b)));
-    // Group curated pickups: when several injuries point at the same pickup,
-    // the freshest news drives the attribution — not a weeks-old IR stint.
+    // Group curated pickups: every contributing injury scores (severity × recency)
+    // and the scores compound. The lead driver is the highest-weight injury.
     const byPickup = new Map();
     for (const h of hurt){
       const w = WAIVER_MAP[normName(h.name)];
       if (!w) continue;
+      const dw = driverWeight(h);
       for (const name of pickupsOf(w)){
         const pk = normName(name);
         if (!trendingNames.has(pk) || seen.has(pk)) continue;
-        const cur = byPickup.get(pk);
-        if (!cur || (h.news_updated || 0) > (cur.h.news_updated || 0))
-          byPickup.set(pk, { h, w, name, adds: trendingCounts[pk] || 0 });
+        let e = byPickup.get(pk);
+        if (!e){ e = { w, name, adds: trendingCounts[pk] || 0, score: 0, drivers: [], lead: null, leadW: -1 }; byPickup.set(pk, e); }
+        e.score += dw;
+        e.drivers.push(h);
+        if (dw > e.leadW || (dw === e.leadW && (h.news_updated || 0) > (e.lead.news_updated || 0))){
+          e.lead = h; e.leadW = dw;
+        }
       }
     }
     const drivers = [...byPickup.values()]
-      .sort((a,b) => (statusRank(a.h.status) - statusRank(b.h.status))
-        || (b.adds - a.adds)
-        || ((b.h.news_updated || 0) - (a.h.news_updated || 0))
-        || (relevance(a.h) - relevance(b.h)))
+      .filter(e => e.score > 0)
+      .sort((a,b) => (b.score - a.score) || (b.adds - a.adds) || ((b.lead.news_updated || 0) - (a.lead.news_updated || 0)))
       .slice(0, 6);
-    for (const { h, w, name } of drivers){
-      const pk = normName(name);
+    for (const e of drivers){
+      const pk = normName(e.name);
       seen.add(pk);
-      const pl = findByName(name) || {};
+      const pl = findByName(e.name) || {};
       const cnt = trendingCounts[pk];
-      // Secondary context: other injuries pointing at the same pickup.
-      // Mentioned, but they don't drive the ranking.
-      const others = [];
-      for (const h2 of hurt){
-        if (normName(h2.name) === normName(h.name)) continue;
-        const w2 = WAIVER_MAP[normName(h2.name)];
-        if (!w2 || !pickupsOf(w2).some(n => normName(n) === pk)) continue;
-        if (!others.some(o => normName(o.name) === normName(h2.name))) others.push(h2);
+      const h = e.lead;
+      // Secondary context: other contributing injuries, mentioned but not re-ranked.
+      const seenD = new Set([normName(h.name)]);
+      const secondary = [];
+      for (const o of e.drivers.slice().sort((a,b) => driverWeight(b) - driverWeight(a) || ((b.news_updated || 0) - (a.news_updated || 0)))){
+        const k = normName(o.name);
+        if (seenD.has(k)) continue;
+        seenD.add(k);
+        secondary.push(o.name + " (" + shortStatus(o.status) + ")");
+        if (secondary.length >= 2) break;
       }
-      others.sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || ((b.news_updated || 0) - (a.news_updated || 0)));
-      const secondary = others.slice(0, 2).map(o => o.name + " (" + shortStatus(o.status) + ")").join(" + ");
-      cards.push({ name, pos: pl.pos || "", team: pl.team || "",
+      cards.push({ name: e.name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
-        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (secondary ? " + " + secondary : "") + " — " + w.note });
+        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (secondary.length ? " + " + secondary.join(" + ") : "") + " — " + e.w.note });
     }
     // 2. Trending fills the rest — tiered by conviction, not raw hype:
     //    tier 0 = curated pickup (analyst + crowd agree)
