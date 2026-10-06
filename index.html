@@ -270,6 +270,14 @@ function isStoryStale(s){
   const p = livePlayerByName(s.name);
   return !!(p && isStaleTag(p));
 }
+function isChangeStale(c){
+  // A recorded change is stale if the player's CURRENT status still matches
+  // the change's "to" status and that status is now a post-game leftover.
+  const p = c.id ? players[c.id] : livePlayerByName(c.name);
+  if (!p || !p.status) return false;
+  if ((c.to || "").toUpperCase() !== (p.status || "").toUpperCase()) return false;
+  return isStaleTag(p);
+}
 
 function detectChanges(next){
   const now = Date.now();
@@ -388,6 +396,7 @@ function autoWeekStories(){
   const out = [];
   for (const c of changes){
     if (c.t < weekAgo || seen[c.id]) continue;
+    if (isChangeStale(c)) continue;
     const toUp = (c.to||"").toUpperCase();
     const fromUp = (c.from||"").toUpperCase();
     const worsened = badTo.some(k=>toUp.includes(k)) ||
@@ -523,7 +532,7 @@ function renderInner(){
       }).join("");
     }
     html += "<h2>⚡ Live status changes</h2>";
-    const items = changes.filter(c => !wq || c.name.toLowerCase().includes(wq)).slice(0,40);
+    const items = changes.filter(c => (!wq || c.name.toLowerCase().includes(wq)) && !isChangeStale(c)).slice(0,40);
     html += items.length ? items.map(c=>
       `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
