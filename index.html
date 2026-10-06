@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 71; // bump every push; shown in footer to spot cached code
+const BUILD_V = 72; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -589,14 +589,21 @@ function renderInner(){
     // Latest = all injured players, strictly chronological by most recent
     // news/updates. A player jumps to the top whenever Sleeper bumps their
     // news_updated or their status changes.
-    html += `<h2>⚡ Latest Updates</h2>`;
-    html += `<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Every injured player, most recent first · refreshes every 90s.</div>`;
+    const lv = window._latestView || "relevant";
+    html += `<h2>⚡ Latest Updates</h2>
+      <div style="display:flex;gap:8px;margin:0 2px 10px">
+        <button class="tab ${lv==="relevant"?"active":""}" data-lv="relevant" style="font-size:12px;padding:6px 12px">🎯 Waiver-relevant</button>
+        <button class="tab ${lv==="all"?"active":""}" data-lv="all" style="font-size:12px;padding:6px 12px">📋 All</button>
+      </div>
+      <div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Most recent first · refreshes every 90s.</div>`;
     const wq = query.toLowerCase();
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) &&
       (!wq || p.name.toLowerCase().includes(wq)) && !isHidden(p) && !isStaleTag(p));
     // 14-day freshness — same as browse tabs
     arr = arr.filter(p => p.news_updated && (Date.now() - p.news_updated) < 14*24*3600*1000);
+    // Waiver-relevant: has a curated pickup or trending same-team adds
+    if (lv === "relevant") arr = arr.filter(p => waiverFor(p));
     // Strictly chronological: most recently updated first
     arr.sort((a, b) => (b.news_updated || 0) - (a.news_updated || 0));
     html += arr.length ? arr.slice(0, 80).map(p => {
@@ -950,6 +957,11 @@ $("tabs").addEventListener("click", e=>{
 document.addEventListener("click", e=>{
   const b = e.target.closest("[data-wv]"); if(!b) return;
   window._waiverView = b.dataset.wv; render();
+});
+// Latest tab toggle (Waiver-relevant vs All)
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-lv]"); if(!b) return;
+  window._latestView = b.dataset.lv; render();
 });
 listEl.addEventListener("click", e=>{
   const hb = e.target.closest("[data-hide]");
