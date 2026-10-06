@@ -436,9 +436,10 @@ function render(){
     if (filter !== "ALL") arr = arr.filter(p => p.pos === filter);
     if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q));
     arr.sort((a,b)=> relevance(a)-relevance(b));
-    const bad = arr.filter(p=>["OUT","IR","PUP","DOUBTFUL"].some(k=>p.status.toUpperCase().includes(k)));
-    const ques = arr.filter(p=>p.status.toUpperCase().includes("QUESTIONABLE"));
-    const other = arr.filter(p=>!bad.includes(p)&&!ques.includes(p));
+    const byRecent = (a,b) => (b.news_updated||0) - (a.news_updated||0);
+    const bad = arr.filter(p=>["OUT","IR","PUP","DOUBTFUL"].some(k=>p.status.toUpperCase().includes(k))).sort(byRecent);
+    const ques = arr.filter(p=>p.status.toUpperCase().includes("QUESTIONABLE")).sort(byRecent);
+    const other = arr.filter(p=>!bad.includes(p)&&!ques.includes(p)).sort(byRecent);
     const groups = [["⛔ Out / IR / Doubtful",bad],["❓ Questionable",ques],["ℹ️ Other",other]];
     for (const [title, g] of groups){
       if (!g.length) continue;
