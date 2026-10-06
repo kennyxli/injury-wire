@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 67; // bump every push; shown in footer to spot cached code
+const BUILD_V = 68; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -243,15 +243,16 @@ async function fetchTrending(){
 // like Underdog's feed. Matched to players by name for expandable cards.
 async function fetchNews(){
   try{
-    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=40");
+    const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100");
     if (!r.ok) return [];
     const d = await r.json();
+    const cutoff = Date.now() - 24*3600*1000; // last 24 hours
     return (d.articles || []).map(a => ({
       headline: a.headline || "",
       desc: a.description || "",
       published: new Date(a.published).getTime() || 0,
       link: (a.links && a.links.web && a.links.web.href) || ""
-    })).filter(a => a.headline && a.published);
+    })).filter(a => a.headline && a.published && a.published >= cutoff);
   }catch(e){ return []; }
 }
 
@@ -624,7 +625,7 @@ function renderInner(){
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "NEWS"){
     html += "<h2>📰 NFL News Wire</h2>";
-    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines, refreshed every 90s.</div>";
+    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines · last 24 hours · refreshes every 90s.</div>";
     // Filter to injury-relevant news only — this is an injury wire, not ESPN.com
     // Deduplicate: same story from multiple reporters (e.g. retirement reported 3 ways)
     const seen = new Set();
