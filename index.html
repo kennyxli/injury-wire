@@ -367,18 +367,47 @@ function render(){
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
-    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Most-added skill players in the last 24h — with why they're moving.</div>";
-    const items = trending
-      .map(t => ({ t, p: players[t.player_id] }))
-      .filter(x => x.p && POSITIONS.includes(x.p.pos) && (!q || x.p.name.toLowerCase().includes(q)))
-      .slice(0, 12);
-    html += items.length ? items.map((x, i)=>
+    html += "<h2>🎯 Top waiver targets</h2><div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-driven pickups first, then who's hot in the last 24h.</div>";
+    const seen = new Set();
+    const cards = [];
+    const findByName = n => {
+      const k = normName(n);
+      return Object.values(players).find(p => normName(p.name) === k);
+    };
+    const statusRank = s => /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3;
+    // 1. Injury-driven targets from the curated map, ranked by severity + relevance
+    const hurt = Object.values(players)
+      .filter(p => p.status && /OUT|IR|DOUBTFUL|PUP|QUESTIONABLE/i.test(p.status) && POSITIONS.includes(p.pos) && !isHidden(p))
+      .sort((a,b) => (statusRank(a.status) - statusRank(b.status)) || (relevance(a) - relevance(b)));
+    for (const h of hurt){
+      const w = WAIVER_MAP[normName(h.name)];
+      if (!w) continue;
+      const pk = normName(w.pickup);
+      if (seen.has(pk)) continue;
+      seen.add(pk);
+      const pl = findByName(w.pickup) || {};
+      cards.push({ name: w.pickup, pos: pl.pos || "", team: pl.team || "", count: null,
+        ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ") — " + w.note });
+      if (cards.length >= 6) break;
+    }
+    // 2. Trending adds fill the rest
+    for (const t of trending){
+      if (cards.length >= 12) break;
+      const p = players[t.player_id];
+      if (!p || !POSITIONS.includes(p.pos)) continue;
+      if (seen.has(normName(p.name))) continue;
+      if (q && !p.name.toLowerCase().includes(q)) continue;
+      seen.add(normName(p.name));
+      cards.push({ name: p.name, pos: p.pos, team: p.team || "FA",
+        count: Number(t.count).toLocaleString(), ctx: injuryContextFor(p) });
+    }
+    html += cards.length ? cards.map((c, i)=>
       `<div class="card">
-        <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${esc(x.p.name)}</div>
-        <div class="pmeta">${esc(x.p.pos)} · ${esc(x.p.team||"FA")}</div></div>
-        <span class="adds" style="color:var(--green);font-weight:800">+${Number(x.t.count).toLocaleString()}</span></div>
-        <div class="inj">${esc(injuryContextFor(x.p))}</div></div>`
-    ).join("") : `<div class="empty">Loading trending…</div>`;
+        <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${esc(c.name)}</div>
+        <div class="pmeta">${esc(c.pos)}${c.pos && c.team ? " · " : ""}${esc(c.team)}</div></div>
+        ${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}</div>
+        <div class="inj">${esc(c.ctx)}</div></div>`
+    ).join("") : `<div class="empty">Loading waiver targets…</div>`;
   } else {
     let arr = Object.values(players).filter(p =>
       POSITIONS.includes(p.pos) && p.status && !SKIP_STATUS.has(p.status) && !isHidden(p));
