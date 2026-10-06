@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 68; // bump every push; shown in footer to spot cached code
+const BUILD_V = 69; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -266,10 +266,14 @@ const INJURY_KW = ["injur", "out for", "sidelined", "questionable", "doubtful",
   "unlikely to play", "game-time decision", "limited in practice", "did not practice",
   "dnps", "pup", "suspended", "failed physical", "after physical", "retire",
   "waived/injured", "injury settlement"];
+// Transactions affect waiver decisions — relevant, but rank below pure injury news
+const TRANSACTION_KW = ["sign", "release", "trade", "claim off waivers", "workout",
+  "tryout", "visit", "elevat", "promot", "cut by", "waived by"];
 function injuryScore(a){
   const t = (a.headline + " " + a.desc).toLowerCase();
   let s = 0;
   for (const k of INJURY_KW) if (t.includes(k)) s += 2;
+  for (const k of TRANSACTION_KW) if (t.includes(k)) s += 1;
   // Reporter-attributed news is usually breaking — boost it
   if (/(rapoport|schefter|schultz|pelissero|glazer|rapsheet|adamschefter)/i.test(t.slice(0,60))) s += 3;
   return s;
