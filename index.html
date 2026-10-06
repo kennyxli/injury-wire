@@ -100,11 +100,14 @@
 <footer>
   Injury data: Sleeper API · Refreshes automatically<br>
   Waiver notes are a starting point — always check your league's availability.<br>
-  Not affiliated with the NFL, Sleeper, or Underdog.
+  Not affiliated with the NFL, Sleeper, or Underdog.<br>
+  <span id="buildv" style="opacity:.4;font-size:11px"></span>
 </footer>
 
 <script>
 "use strict";
+const BUILD_V = 39; // bump every push; shown in footer to spot cached code
+document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
 const SEASON_START = new Date("2026-09-10T00:00:00").getTime();
