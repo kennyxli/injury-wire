@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Waiver Wire">
 <meta name="theme-color" content="#0a0e14">
 <link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
 <title>Waiver Wire — Live NFL Injury Report</title>
 <style>
   :root{
@@ -95,6 +96,12 @@
 
 <button class="refresh" id="refreshBtn">⟳ Pull latest now</button>
 <button class="refresh" id="notifyBtn" style="margin-top:6px">🔔 Enable injury alerts</button>
+<div id="pushSetup" style="display:none; margin:10px 16px; padding:14px; background:var(--card); border:1px solid var(--accent); border-radius:14px; font-size:13px;">
+  <div style="font-weight:700; margin-bottom:8px;">📲 Closed-app alerts — one-time setup</div>
+  <div id="pushStatus" style="color:var(--muted); margin-bottom:8px;">Setting up…</div>
+  <textarea id="pushSubBox" readonly rows="4" style="width:100%; font-size:10px; background:#0a0e14; color:#8b98ab; border:1px solid #243044; border-radius:8px; padding:8px; display:none;"></textarea>
+  <button class="refresh" id="pushCopyBtn" style="display:none; margin-top:8px;">📋 Copy code & send to Brio</button>
+</div>
 <button class="refresh" id="yahooBtn" style="display:none">🔗 Connect Yahoo</button>
 
 <div class="section" id="list"></div>
@@ -108,8 +115,59 @@
 
 <script>
 "use strict";
-const BUILD_V = 77; // bump every push; shown in footer to spot cached code
+const BUILD_V = 78; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
+
+/* ============ WEB PUSH (closed-app alerts, v78) ============ */
+const VAPID_PUBLIC_KEY = "BE9MRYgq1CVDlaZUKIRHfgLzUGVXRHfXsztOeL53e1g9vqe83lkpj8CgShE1-HOixbqWuo1C7H93L2SuTZZzra4";
+function urlBase64ToUint8Array(b64){
+  const pad = "=".repeat((4 - b64.length % 4) % 4);
+  const b = (b64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b); const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+async function setupPush(){
+  const panel = document.getElementById("pushSetup");
+  const status = document.getElementById("pushStatus");
+  const box = document.getElementById("pushSubBox");
+  const copyBtn = document.getElementById("pushCopyBtn");
+  panel.style.display = "block";
+  try{
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)){
+      status.textContent = "Push not supported in this browser. Use Safari → Add to Home Screen.";
+      return;
+    }
+    status.textContent = "Registering…";
+    const reg = await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    status.textContent = "Subscribing…";
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const j = sub.toJSON();
+    box.value = JSON.stringify(j);
+    box.style.display = "block";
+    copyBtn.style.display = "block";
+    status.innerHTML = "✅ <b>You're subscribed.</b> Tap below, copy the code, and paste it to Brio in chat — that's the last step.";
+    copyBtn.onclick = async ()=>{
+      try{ await navigator.clipboard.writeText(box.value); }
+      catch(e){ box.select(); document.execCommand("copy"); }
+      copyBtn.textContent = "✅ Copied — paste it to Brio";
+    };
+  }catch(e){
+    status.textContent = "Setup hiccup: " + (e && e.message ? e.message : e) + ". Make sure the app is installed to your Home Screen and notifications are allowed.";
+  }
+}
+// Register the service worker on every load so pushes can arrive when closed.
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
 const SEASON_START = new Date("2026-09-10T00:00:00").getTime();
@@ -1024,7 +1082,10 @@ $("notifyBtn").addEventListener("click", async ()=>{
   notifyEnabled = perm === "granted";
   try{ localStorage.setItem("ww_notify", notifyEnabled ? "1" : "0"); }catch(e){}
   updateNotifyBtn();
-  if (notifyEnabled) fireNotify("🔔 Injury alerts on", "You'll get notified when players go Out, IR, or Doubtful.");
+  if (notifyEnabled){
+    fireNotify("🔔 Injury alerts on", "You'll get notified when players go Out, IR, or Doubtful.");
+    setupPush(); // closed-app push subscription (v78)
+  }
 });
 function updateNotifyBtn(){
   const b = $("notifyBtn"); if (!b) return;
