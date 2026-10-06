@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 43; // bump every push; shown in footer to spot cached code
+const BUILD_V = 44; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -669,8 +669,8 @@ function renderInner(){
           <div class="pmeta">${esc(h.pos)} · ${esc(h.team||"FA")}${h.injury_part? " · "+esc(h.injury_part):""}</div></div>
           <span class="badge ${badgeClass(h.status)}">${esc(shortStatus(h.status))}</span>
           <button class="hidebtn" data-hide="${esc(hideKey(h))}" title="Hide">✕</button></div>
-          <div class="inj">${esc(w.note)}</div>
-          <div class="pmeta" style="margin-top:6px;opacity:.7">Watch: ${watch}</div></div>`;
+          <div class="pmeta" style="margin-top:6px">🎯 ${watch}</div>
+          <div class="inj" style="margin-top:4px;opacity:.75">${esc(w.note)}</div></div>`;
       }).join("");
     }
   } else {
