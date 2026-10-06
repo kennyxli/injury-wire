@@ -182,11 +182,13 @@ const WAIVER_MAP = {
 /* ============ STATE ============ */
 let players = {};          // id -> normalized
 let prevStatus = {};       // id -> injury_status (for change detection)
-let changes = [];          // {t, name, team, pos, from, to}
+let prevNews = {};         // id -> news_updated timestamp (for news-update detection)
+let changes = [];          // {t, name, team, pos, from, to} or {t, name, team, pos, news:true}
 let trending = [];
 let trendingNames = new Set(); // normalized names with active add volume
 let filter = "TRENDING", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
+try { prevNews = JSON.parse(localStorage.getItem("ww_prevnews") || "{}"); } catch(e){}
 
 const $ = id => document.getElementById(id);
 const listEl = $("list"), statusEl = $("status");
@@ -279,7 +281,8 @@ function isChangeStale(c){
   // the change's "to" status and that status is now a post-game leftover.
   const p = c.id ? players[c.id] : livePlayerByName(c.name);
   if (!p || !p.status) return false;
-  if ((c.to || "").toUpperCase() !== (p.status || "").toUpperCase()) return false;
+  const target = (c.news ? c.status : c.to) || "";
+  if (target.toUpperCase() !== (p.status || "").toUpperCase()) return false;
   return isStaleTag(p);
 }
 
@@ -298,10 +301,23 @@ function detectChanges(next){
       if (hidden[nk]){ delete hidden[nk];
         try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
     }
+    // News-update detection: Sleeper bumps news_updated on fresh reports
+    // (e.g. Rapoport "unlikely to play") even when injury_status doesn't change.
+    const pn = prevNews[id];
+    const nu = p.news_updated || 0;
+    if (pn !== undefined && nu > pn && p.status && p.status !== "Healthy"){
+      changes.unshift({ t: now, name: p.name, team: p.team, pos: p.pos,
+        news: true, status: p.status, id });
+      if (changes.length > 60) changes.pop();
+      if (hidden[id]){ delete hidden[id];
+        try{ localStorage.setItem("ww_hidden", JSON.stringify(hidden)); }catch(e){} }
+    }
   }
   prevStatus = {};
-  for (const id in next) prevStatus[id] = next[id].status;
+  prevNews = {};
+  for (const id in next){ prevStatus[id] = next[id].status; prevNews[id] = next[id].news_updated || 0; }
   try{ localStorage.setItem("ww_prev", JSON.stringify(prevStatus)); }catch(e){}
+  try{ localStorage.setItem("ww_prevnews", JSON.stringify(prevNews)); }catch(e){}
 }
 
 function pickupsOf(w){ return Array.isArray(w.pickup) ? w.pickup : [w.pickup]; }
@@ -403,6 +419,15 @@ function autoWeekStories(){
   for (const c of changes){
     if (c.t < weekStart || seen[c.id]) continue;
     if (isChangeStale(c)) continue;
+    if (c.news){
+      // Fresh news on an already-hurt player (e.g. "unlikely to play") —
+      // treat as a story if the status is serious.
+      const stUp = (c.status||"").toUpperCase();
+      if (!badTo.some(k=>stUp.includes(k)) && !stUp.includes("QUESTIONABLE")) continue;
+      seen[c.id] = 1;
+      out.push(c);
+      continue;
+    }
     const toUp = (c.to||"").toUpperCase();
     const fromUp = (c.from||"").toUpperCase();
     const worsened = badTo.some(k=>toUp.includes(k)) ||
@@ -528,19 +553,24 @@ function renderInner(){
       html += `<h2>📡 Auto-detected this week</h2>`;
       html += auto.map(s=>{
         const p = players[s.id] || { name: s.name, pos: s.pos, team: s.team };
+        const st = s.news ? s.status : s.to;
+        const sub = s.news ? `📰 News update · ${timeAgo(s.t)}` : `${esc(s.from)} → ${esc(s.to)} · ${timeAgo(s.t)}`;
         return `<div class="card">
           <div class="row1"><div><div class="pname">${esc(s.name)}</div>
           <div class="pmeta">${esc(s.pos)} · ${esc(s.team||"")}</div></div>
-          <span class="badge ${badgeClass(s.to)}">${esc(shortStatus(s.to))}</span>
+          <span class="badge ${badgeClass(st)}">${esc(shortStatus(st))}</span>
           <button class="hidebtn" data-hide="${esc(hideKey(p))}" title="Hide — I see him playing">✕</button></div>
-          <div class="inj">${esc(s.from)} → ${esc(s.to)} · ${timeAgo(s.t)}</div>
+          <div class="inj">${sub}</div>
           ${waiverFor(p)}</div>`;
       }).join("");
     }
     html += "<h2>⚡ Live status changes</h2>";
     const items = changes.filter(c => (!wq || c.name.toLowerCase().includes(wq)) && !isChangeStale(c)).slice(0,40);
     html += items.length ? items.map(c=>
-      `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
+      c.news
+      ? `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
+         📰 News update · <b>${esc(c.status)}</b> · <time>${timeAgo(c.t)}</time></div>`
+      : `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
     ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
