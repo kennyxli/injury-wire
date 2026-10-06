@@ -80,8 +80,8 @@
 <input class="search" id="search" type="search" placeholder="Search player…" autocomplete="off">
 
 <div class="tabs" id="tabs">
-  <button class="tab active" data-f="CHANGES">⚡ Latest</button>
-  <button class="tab" data-f="TRENDING">🎯 Waivers</button>
+  <button class="tab active" data-f="TRENDING">🎯 Waivers</button>
+  <button class="tab" data-f="CHANGES">⚡ Latest</button>
   <button class="tab" data-f="ALL">All</button>
   <button class="tab" data-f="QB">QB</button>
   <button class="tab" data-f="RB">RB</button>
@@ -173,7 +173,7 @@ let players = {};          // id -> normalized
 let prevStatus = {};       // id -> injury_status (for change detection)
 let changes = [];          // {t, name, team, pos, from, to}
 let trending = [];
-let filter = "CHANGES", query = "";
+let filter = "TRENDING", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
 
 const $ = id => document.getElementById(id);
