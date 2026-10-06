@@ -90,6 +90,7 @@
 </div>
 
 <button class="refresh" id="refreshBtn">⟳ Pull latest now</button>
+<button class="refresh" id="yahooBtn" style="display:none">🔗 Connect Yahoo</button>
 
 <div class="section" id="list"></div>
 
@@ -125,6 +126,8 @@ const WEEK_STORIES = [
 const POLL_MS = 90_000;               // re-check every 90s
 const POSITIONS = ["QB","RB","WR","TE"];
 const SKIP_STATUS = new Set(["", null, undefined]);
+// Yahoo OAuth broker (Cloudflare Worker). Empty = Yahoo connect hidden.
+const YAHOO_WORKER = "";
 
 /* Handcuff / beneficiary map: injured star -> waiver target.
    Keyed by lowercase full name. EVERY entry verified against 2026-27
@@ -255,7 +258,7 @@ function waiverFor(p){
     const live = pickupsOf(w).filter(n => trendingNames.has(normName(n)));
     if (live.length){
       return `<div class="waiver"><div class="wl">⚡ Waiver target${live.length>1?"s":""}</div>` +
-        live.map(n=>`<div class="wp">${esc(n)}</div>`).join("") +
+        live.map(n=>`<div class="wp">${badgeNames(n)}</div>`).join("") +
         `<div class="wn">${esc(w.note)}</div></div>`;
     }
   }
@@ -338,6 +341,86 @@ function autoWeekStories(){
     return ra - rb;
   });
   return out.slice(0,6);
+}
+
+/* ============ YAHOO (optional, per-visitor) ============ */
+// Connects the visitor's own Yahoo fantasy account so waiver targets show
+// whether each player is actually on THEIR league's wire. Tokens live only
+// in this browser's localStorage. Inert until YAHOO_WORKER is configured.
+const normYahoo = n => (n || "").toLowerCase().replace(/\./g, "").trim();
+let yahooAvailable = new Set();   // normalized names on the visitor's wire
+let yahooLeagueName = "";
+
+function yahooConnected(){
+  try{ return !!JSON.parse(localStorage.getItem("ww_yahoo") || "null"); }
+  catch(e){ return false; }
+}
+
+// OAuth callback landed with tokens in the URL fragment — capture & clear.
+(function yahooCapture(){
+  const h = location.hash || "";
+  if (h.includes("yahoo_access_token")){
+    const ps = new URLSearchParams(h.slice(1));
+    const access = ps.get("yahoo_access_token"), refresh = ps.get("yahoo_refresh_token");
+    if (access) localStorage.setItem("ww_yahoo",
+      JSON.stringify({ access, refresh, exp: Date.now() + 3600 * 1000 }));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+})();
+
+async function yahooFetch(path, opts = {}) {
+  const tok = JSON.parse(localStorage.getItem("ww_yahoo") || "null");
+  if (!tok) throw new Error("not connected");
+  const call = access => fetch(YAHOO_WORKER + path, {
+    ...opts, headers: { ...(opts.headers || {}), Authorization: "Bearer " + access },
+  });
+  let r = await call(tok.access);
+  if (r.status === 401 && tok.refresh) {
+    const rr = await fetch(YAHOO_WORKER + "/auth/refresh", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: tok.refresh }),
+    });
+    const nt = await rr.json().catch(() => ({}));
+    if (nt.access_token) {
+      const next = { access: nt.access_token, refresh: nt.refresh_token || tok.refresh, exp: Date.now() + 3600 * 1000 };
+      localStorage.setItem("ww_yahoo", JSON.stringify(next));
+      r = await call(next.access);
+    }
+  }
+  return r;
+}
+
+async function yahooSync() {
+  try {
+    const lr = await yahooFetch("/api/leagues");
+    const leagues = (await lr.json()).leagues || [];
+    if (!leagues.length) return;
+    yahooLeagueName = leagues[0].name || "";
+    const fr = await yahooFetch("/api/freeagents?league_key=" + encodeURIComponent(leagues[0].league_key));
+    const fj = await fr.json();
+    yahooAvailable = new Set((fj.available || []).map(p => normYahoo(p.name != null ? p.name : p)));
+  } catch (e) { /* stay in public mode */ }
+  updateYahooBtn();
+  render();
+}
+
+function updateYahooBtn() {
+  const b = $("yahooBtn");
+  if (!YAHOO_WORKER) { b.style.display = "none"; return; }
+  b.style.display = "";
+  b.textContent = yahooConnected()
+    ? `✅ Yahoo connected${yahooLeagueName ? " · " + yahooLeagueName : ""} — tap to disconnect`
+    : "🔗 Connect Yahoo — your league's actual wire";
+}
+
+// ✅ / ❌ availability badge for a possibly "A / B"-joined name string.
+function badgeNames(joined) {
+  if (!yahooConnected() || !yahooAvailable.size) return esc(joined);
+  return String(joined).split(" / ").map(n => {
+    const ok = yahooAvailable.has(normYahoo(n));
+    return esc(n) + (ok ? ' <span title="On your waiver wire">✅</span>'
+                        : ' <span title="Rostered in your league">❌</span>');
+  }).join(" / ");
 }
 
 function render(){
@@ -430,7 +513,7 @@ function render(){
     }
     html += cards.length ? cards.map((c, i)=>
       `<div class="card">
-        <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${esc(c.name)}</div>
+        <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(c.name)}</div>
         <div class="pmeta">${esc(c.pos)}${c.pos && c.team ? " · " : ""}${esc(c.team)}</div></div>
         ${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}</div>
         <div class="inj">${esc(c.ctx)}</div></div>`
@@ -528,10 +611,21 @@ listEl.addEventListener("click", e=>{
 });
 $("search").addEventListener("input", e=>{ query = e.target.value; render(); });
 $("refreshBtn").addEventListener("click", ()=>refresh(true));
+$("yahooBtn").addEventListener("click", ()=>{
+  if (yahooConnected()){
+    localStorage.removeItem("ww_yahoo");
+    yahooAvailable = new Set(); yahooLeagueName = "";
+    updateYahooBtn(); render();
+  } else if (YAHOO_WORKER){
+    location.href = YAHOO_WORKER + "/auth/start";
+  }
+});
 setInterval(()=>refresh(false), POLL_MS);
 setInterval(()=>{ // keep "xm ago" labels fresh
   if (lastOk) statusEl.innerHTML = `<span class="dot"></span> Live · updated ${timeAgo(lastOk)} · checks every 90s`;
 }, 15000);
+updateYahooBtn();
+if (YAHOO_WORKER && yahooConnected()) yahooSync();
 refresh(false);
 </script>
 </body>
