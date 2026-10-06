@@ -72,12 +72,12 @@
 <input class="search" id="search" type="search" placeholder="Search player…" autocomplete="off">
 
 <div class="tabs" id="tabs">
-  <button class="tab active" data-f="ALL">All</button>
+  <button class="tab active" data-f="CHANGES">⚡ Latest</button>
+  <button class="tab" data-f="ALL">All</button>
   <button class="tab" data-f="QB">QB</button>
   <button class="tab" data-f="RB">RB</button>
   <button class="tab" data-f="WR">WR</button>
   <button class="tab" data-f="TE">TE</button>
-  <button class="tab" data-f="CHANGES">⚡ Changes</button>
   <button class="tab" data-f="TRENDING">🔥 Trending</button>
 </div>
 
@@ -93,6 +93,26 @@
 
 <script>
 "use strict";
+/* ============ WEEK CONTEXT ============ */
+// NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
+const SEASON_START = new Date("2026-09-10T00:00:00").getTime();
+const WEEK_NUM = Math.max(1, Math.min(18, Math.floor((Date.now() - SEASON_START) / (7*24*3600*1000)) + 1));
+
+/* Curated: the injuries that actually matter THIS week.
+   Updated by Brio via site pushes. Keep tight: only new/changed this week. */
+const WEEK_STORIES = [
+  { name:"Saquon Barkley", team:"PHI", pos:"RB", status:"Out",
+    note:"Hamstring — week-to-week, expected to sit Week 5 in London. Will Shipley starts." },
+  { name:"Tank Bigsby", team:"PHI", pos:"RB", status:"IR",
+    note:"Core-muscle surgery, ~6 weeks on IR. Eagles backfield is Shipley alone." },
+  { name:"Alvin Kamara", team:"NO", pos:"RB", status:"Questionable",
+    note:"Limped off on MNF vs Falcons (3rd Q, no helmet return). Diagnosis pending — Kendre Miller next man up." },
+  { name:"Ladd McConkey", team:"LAC", pos:"WR", status:"Questionable",
+    note:"Foot — week-to-week since leaving the Week 4 game early with 0 catches." },
+  { name:"Tyquan Thornton", team:"KC", pos:"WR", status:"IR",
+    note:"Ankle surgery, out 12–16 weeks. Chiefs down a deep threat." },
+];
+
 /* ============ CONFIG ============ */
 const POLL_MS = 90_000;               // re-check every 90s
 const POSITIONS = ["QB","RB","WR","TE"];
@@ -174,7 +194,7 @@ let players = {};          // id -> normalized
 let prevStatus = {};       // id -> injury_status (for change detection)
 let changes = [];          // {t, name, team, pos, from, to}
 let trending = [];
-let filter = "ALL", query = "";
+let filter = "CHANGES", query = "";
 try { prevStatus = JSON.parse(localStorage.getItem("ww_prev") || "{}"); } catch(e){}
 
 const $ = id => document.getElementById(id);
@@ -253,12 +273,26 @@ function render(){
   const q = query.toLowerCase();
   let html = "";
   if (filter === "CHANGES"){
-    html += "<h2>⚡ Latest status changes</h2>";
-    const items = changes.filter(c => !q || c.name.toLowerCase().includes(q)).slice(0,40);
+    html += `<h2>🗓️ This week — Week ${WEEK_NUM}</h2>`;
+    const wq = query.toLowerCase();
+    const stories = WEEK_STORIES.filter(s => !wq || s.name.toLowerCase().includes(wq));
+    html += stories.length ? stories.map(s=>{
+      const w = WAIVER_MAP[normName(s.name)];
+      return `<div class="card">
+        <div class="row1"><div><div class="pname">${esc(s.name)}</div>
+        <div class="pmeta">${esc(s.pos)} · ${esc(s.team)}</div></div>
+        <span class="badge ${badgeClass(s.status)}">${esc(shortStatus(s.status))}</span></div>
+        <div class="inj">${esc(s.note)}</div>
+        ${w?`<div class="waiver"><div class="wl">⚡ Waiver target</div>
+          <div class="wp">${esc(w.pickup)}</div>
+          <div class="wn">${esc(w.note)}</div></div>`:""}</div>`;
+    }).join("") : `<div class="empty">No week-specific stories yet.</div>`;
+    html += "<h2>⚡ Live status changes</h2>";
+    const items = changes.filter(c => !wq || c.name.toLowerCase().includes(wq)).slice(0,40);
     html += items.length ? items.map(c=>
       `<div class="change"><b>${esc(c.name)}</b> <span style="color:var(--muted)">${esc(c.pos)} · ${esc(c.team||"")}</span><br>
        ${esc(c.from)} → <b>${esc(c.to)}</b> · <time>${timeAgo(c.t)}</time></div>`
-    ).join("") : `<div class="empty">No changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
+    ).join("") : `<div class="empty">No live changes detected yet.<br>Keep this page open — updates land automatically.</div>`;
   } else if (filter === "TRENDING"){
     html += "<h2>🔥 Most-added players (24h)</h2><div class='card'>";
     const items = trending.filter(t=>{
