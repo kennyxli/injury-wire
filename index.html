@@ -506,16 +506,28 @@ function render(){
         ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (names.length>1 ? " committee" : "") + " — " + w.note });
       if (cards.length >= 6) break;
     }
-    // 2. Trending adds fill the rest
+    // 2. Trending fills the rest — tiered by conviction, not raw hype:
+    //    tier 0 = curated pickup (analyst + crowd agree)
+    //    tier 1 = real injury situation behind the adds
+    //    tier 2 = pure hype (no injury link)
+    const fillers = [];
     for (const t of trending){
-      if (cards.length >= 12) break;
+      if (seen.size >= 24) break; // collect enough to tier-sort
       const p = players[t.player_id];
       if (!p || !POSITIONS.includes(p.pos)) continue;
       if (seen.has(normName(p.name))) continue;
       if (q && !p.name.toLowerCase().includes(q)) continue;
       seen.add(normName(p.name));
-      cards.push({ name: p.name, pos: p.pos, team: p.team || "FA",
-        count: Number(t.count).toLocaleString(), ctx: injuryContextFor(p) });
+      const ctx = injuryContextFor(p);
+      const tier = PICKUP_CONTEXT[normName(p.name)] ? 0 : (ctx.startsWith("📈") ? 2 : 1);
+      fillers.push({ name: p.name, pos: p.pos, team: p.team || "FA",
+        count: Number(t.count).toLocaleString(), countNum: Number(t.count) || 0,
+        ctx, tier });
+    }
+    fillers.sort((a,b) => (a.tier - b.tier) || (b.countNum - a.countNum));
+    for (const f of fillers){
+      if (cards.length >= 12) break;
+      cards.push(f);
     }
     html += cards.length ? cards.map((c, i)=>
       `<div class="card">
