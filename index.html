@@ -217,7 +217,7 @@ async function fetchPlayers(){
 }
 async function fetchTrending(){
   try{
-    const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=15");
+    const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=25");
     if (!r.ok) return [];
     return r.json();
   }catch(e){ return []; }
@@ -381,6 +381,15 @@ function render(){
       const k = normName(n);
       return Object.values(players).find(p => normName(p.name) === k);
     };
+    // Availability: normalized names with active add volume in the last 24h.
+    // A curated pickup nobody is adding is already rostered — don't recommend him.
+    const trendingNames = new Set(), trendingCounts = {};
+    for (const t of trending){
+      const p = players[t.player_id];
+      if (!p) continue;
+      trendingNames.add(normName(p.name));
+      trendingCounts[normName(p.name)] = t.count;
+    }
     const statusRank = s => /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3;
     // 1. Injury-driven targets from the curated map — fresh news only (5d),
     // ranked by severity first, then recency, then relevance. Last week's news is done.
@@ -394,9 +403,12 @@ function render(){
       if (!w) continue;
       const names = pickupsOf(w);
       if (names.some(n => seen.has(normName(n)))) continue;
+      if (!names.some(n => trendingNames.has(normName(n)))) continue;
       names.forEach(n => seen.add(normName(n)));
       const pl = findByName(names[0]) || {};
-      cards.push({ name: names.join(" / "), pos: pl.pos || "", team: pl.team || "", count: null,
+      const cnt = trendingCounts[normName(names[0])];
+      cards.push({ name: names.join(" / "), pos: pl.pos || "", team: pl.team || "",
+        count: cnt ? Number(cnt).toLocaleString() : null,
         ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (names.length>1 ? " committee" : "") + " — " + w.note });
       if (cards.length >= 6) break;
     }
