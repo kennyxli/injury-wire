@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 70; // bump every push; shown in footer to spot cached code
+const BUILD_V = 71; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -620,7 +620,7 @@ function renderInner(){
             `<div style="padding:8px 0;border-top:1px solid #1e293b"><div style="font-size:13px;font-weight:600">${esc(a.headline)}</div>
              <div style="font-size:12px;color:var(--muted);margin-top:2px">${a.desc ? esc(a.desc.slice(0, 120)) + (a.desc.length > 120 ? "…" : "") + " · " : ""}${timeAgo(a.published)}</div></div>`
           ).join("")}</div>` : ""; })()}
-        ${waiverFor(p)}</div>`;
+        </div>`;
     }).join("") : `<div class="empty">No injuries right now. 🎉</div>`;
   } else if (filter === "NEWS"){
     html += "<h2>📰 NFL News Wire</h2>";
