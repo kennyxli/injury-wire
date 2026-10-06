@@ -37,7 +37,7 @@
   .section h2{font-size:14px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:8px 0 10px;}
   .card{background:var(--card); border:1px solid #1e293b; border-radius:14px; padding:14px; margin-bottom:10px;}
   .card.new{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
-  .row1{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .row1{display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:10px;}
   .pname{font-size:16px; font-weight:700;}
   .pmeta{font-size:12px; color:var(--muted); margin-top:2px;}
   .badge{flex:0 0 auto; font-size:11px; font-weight:800; padding:5px 10px; border-radius:999px;
@@ -107,7 +107,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 72; // bump every push; shown in footer to spot cached code
+const BUILD_V = 73; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
