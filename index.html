@@ -293,6 +293,7 @@ function hideKey(p){ return p.id || ("name:" + normName(p.name)); }
 function isHidden(p){ return hidden[hideKey(p)] || (p.id && hidden["name:" + normName(p.name)]); }
 
 function titleCase(s){ return (s||"").split(" ").map(w=>w? w[0].toUpperCase()+w.slice(1):w).join(" "); }
+function statusRank(s){ return /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3; }
 
 // Reverse index: pickup name -> whose injury is driving the adds.
 const PICKUP_CONTEXT = {};
@@ -430,6 +431,10 @@ function badgeNames(joined) {
 }
 
 function render(){
+  try { renderInner(); }
+  catch(e){ listEl.innerHTML = `<div class="empty">Couldn't draw this view — tap ⟳ to retry.<br><span style="opacity:.6">${esc(e.message || e)}</span></div>`; }
+}
+function renderInner(){
   const q = query.toLowerCase();
   let html = "";
   if (filter === "CHANGES"){
@@ -484,7 +489,6 @@ function render(){
       const p = players[t.player_id];
       if (p) trendingCounts[normName(p.name)] = t.count;
     }
-    const statusRank = s => /IR|PUP/i.test(s) ? 0 : /OUT/i.test(s) ? 1 : /DOUBTFUL/i.test(s) ? 2 : 3;
     // 1. Injury-driven targets from the curated map — fresh news only (5d),
     // ranked by severity first, then recency, then relevance. Last week's news is done.
     const FRESH_MS = 5*24*3600*1000;
