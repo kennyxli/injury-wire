@@ -262,6 +262,14 @@ function isStaleTag(p){
   if (!end) return false;
   return (p.news_updated || 0) < end;
 }
+function livePlayerByName(name){
+  const nk = normName(name);
+  return Object.values(players).find(p => normName(p.name) === nk);
+}
+function isStoryStale(s){
+  const p = livePlayerByName(s.name);
+  return !!(p && isStaleTag(p));
+}
 
 function detectChanges(next){
   const now = Date.now();
@@ -486,8 +494,8 @@ function renderInner(){
   if (filter === "CHANGES"){
     html += `<h2>🗓️ This week — Week ${WEEK_NUM}</h2>`;
     const wq = query.toLowerCase();
-    const stories = WEEK_STORIES.filter(s => !wq || s.name.toLowerCase().includes(wq));
-    html += stories.length ? stories.filter(s => !isHidden(s)).map(s=>{
+    const stories = WEEK_STORIES.filter(s => (!wq || s.name.toLowerCase().includes(wq)) && !isHidden(s) && !isStoryStale(s));
+    html += stories.length ? stories.map(s=>{
       const w = WAIVER_MAP[normName(s.name)];
       return `<div class="card">
         <div class="row1"><div><div class="pname">${esc(s.name)}</div>
