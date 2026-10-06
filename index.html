@@ -106,7 +106,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 44; // bump every push; shown in footer to spot cached code
+const BUILD_V = 45; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 /* ============ WEEK CONTEXT ============ */
 // NFL week derived from season start (2026 Week 1 Thursday = Sept 10)
@@ -660,17 +660,16 @@ function renderInner(){
     if (noPickup.length){
       html += `<h2 style="margin-top:18px">📰 More injuries — deeper adds</h2>`;
       html += noPickup.slice(0, 8).map(({ h, w, names }) =>{
-        const watch = names.map(n => {
+        return names.map(n => {
+          const pl = findByName(n) || {};
           const c = trendingCounts[normName(n)] || 0;
-          return esc(n) + (c > 0 ? ` (${Math.round(c/1000)}k adds)` : "");
-        }).join(", ");
-        return `<div class="card">
-          <div class="row1"><div><div class="pname">${esc(h.name)}</div>
-          <div class="pmeta">${esc(h.pos)} · ${esc(h.team||"FA")}${h.injury_part? " · "+esc(h.injury_part):""}</div></div>
-          <span class="badge ${badgeClass(h.status)}">${esc(shortStatus(h.status))}</span>
-          <button class="hidebtn" data-hide="${esc(hideKey(h))}" title="Hide">✕</button></div>
-          <div class="pmeta" style="margin-top:6px">🎯 ${watch}</div>
-          <div class="inj" style="margin-top:4px;opacity:.75">${esc(w.note)}</div></div>`;
+          const adds = c > 0 ? `+${Number(c).toLocaleString()} adds in 24h` : `No adds yet`;
+          const reason = `${h.name} (${shortStatus(h.status)})`;
+          return `<div class="card" style="border:1px dashed var(--accent);">
+            <div style="color:var(--accent);font-weight:800;letter-spacing:.12em;font-size:12px;text-transform:uppercase">🔥 Trending ${esc(pl.team||"")} ${esc(pl.pos||"")} adds</div>
+            <div class="pname" style="margin-top:6px">${esc(n)} <span style="color:var(--muted);font-weight:400">· ${esc(pl.team||"")}</span></div>
+            <div class="pmeta" style="margin-top:4px">${adds} — ${esc(reason)}</div></div>`;
+        }).join("");
       }).join("");
     }
   } else {
