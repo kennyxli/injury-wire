@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 88; // bump every push; shown in footer to spot cached code
+const BUILD_V = 89; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -849,8 +849,9 @@ function renderInner(){
         // Duration matters: a 1-2 week rental (OUT, not IR) caps lower than a
         // multi-week runway (IR). RBs price higher than WRs (scarcity).
         if (leadWeight >= 4 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 25 };
-        if (leadWeight >= 4 && adds >= 200000) return { label: "🔴 Must-add", pct: 20 };
         if (leadWeight >= 3 && adds >= 200000 && longRunway) return { label: "🔴 Must-add", pct: 20 };
+        // Star out short-term (week-to-week, not IR): valuable rental, not a season-changer.
+        if (leadWeight >= 4 && adds >= 200000) return { label: "🟡 Strong add", pct: 15 };
         if (leadWeight >= 3 && adds >= 200000) return { label: "🟡 Strong add", pct: isRB ? 15 : 12 };
         if (leadWeight >= 3 && adds >= 100000 && (longRunway || medRunway)) return { label: "🟡 Strong add", pct: isRB ? 15 : 10 };
         if (adds >= 50000) return { label: "🟡 Strong add", pct: 10 };
