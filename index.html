@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 89; // bump every push; shown in footer to spot cached code
+const BUILD_V = 90; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -767,6 +767,7 @@ function renderInner(){
       <div style="display:flex;gap:8px;margin:0 2px 10px">
         <button class="tab ${wv==="top"?"active":""}" data-wv="top" style="font-size:12px;padding:6px 12px">📈 Top adds</button>
         <button class="tab ${wv==="smart"?"active":""}" data-wv="smart" style="font-size:12px;padding:6px 12px">🧠 Smart picks</button>
+        <button class="tab ${wv==="ai"?"active":""}" data-wv="ai" style="font-size:12px;padding:6px 12px">🤖 AI picks</button>
       </div>`;
     if (wv === "top") {
       // Pure volume: top trending by 24h adds, no logic
@@ -782,7 +783,35 @@ function renderInner(){
           <div class="inj" style="margin-top:4px;opacity:.8">${esc(ctx)}</div></div>`;
       }).join("");
       // Deeper adds section still shows below
-    } else {
+    } else if (wv === "ai") {
+      // AI analyst picks: researched twice daily across FantasyPros, RotoBaller,
+      // ESPN et al, ranked for Kenny's roster. Loaded from waiver-rankings.json.
+      html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Analyst-ranked targets — researched across the big sources, twice daily, graded for your roster.</div>";
+      const ai = window._aiRankings;
+      if (ai === undefined) {
+        html += `<div class="empty">Loading analyst picks…</div>`;
+        fetch("waiver-rankings.json", {cache: "no-store"}).then(r => r.ok ? r.json() : null)
+          .then(j => { window._aiRankings = j; render(); })
+          .catch(() => { window._aiRankings = null; render(); });
+      } else if (!ai || !ai.picks || !ai.picks.length) {
+        html += `<div class="empty">Analyst hasn't published yet.<br>Check back after the next research run.</div>`;
+      } else {
+        const upd = ai.updated ? new Date(ai.updated).getTime() : 0;
+        html += `<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Week ${esc(String(ai.week || "?"))} · updated ${upd ? timeAgo(upd) : "recently"}</div>`;
+        html += ai.picks.map((p, i) => `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <div class="pname">#${i+1} ${esc(p.name)} <span style="color:var(--muted);font-weight:400">· ${esc(p.team||"")} ${esc(p.pos||"")}</span></div>
+              ${p.faab ? `<div style="white-space:nowrap"><span class="badge">${esc(p.faab)}</span></div>` : ""}
+            </div>
+            ${p.tier ? `<div style="font-size:13px;font-weight:700;margin-top:4px">${esc(p.tier)}</div>` : ""}
+            ${p.why ? `<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-top:6px">${esc(p.why)}</div>` : ""}
+            ${p.sources && p.sources.length ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;opacity:.7">📚 ${esc(p.sources.join(" · "))}</div>` : ""}
+            ${p.forKenny ? `<div style="font-size:13px;margin-top:8px;padding:8px;border-radius:8px;background:var(--bg)"><b>For you:</b> ${esc(p.forKenny)}</div>` : ""}
+          </div>`).join("");
+      }
+    } // end ai view
+    else {
     html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Fresh injury-driven pickups first, then who's hot in the last 24h.</div>";
     const seen = new Set();
     const cards = [];
@@ -818,12 +847,16 @@ function renderInner(){
         if (!trendingNames.has(pk) || seen.has(pk)) continue;
         if ((trendingCounts[pk] || 0) < 50000) continue;
         let e = byPickup.get(pk);
-        if (!e){ e = { w, name, adds: trendingCounts[pk] || 0, score: 0, drivers: [], lead: null, leadW: -1 }; byPickup.set(pk, e); }
+        if (!e){ e = { w, name, adds: trendingCounts[pk] || 0, score: 0, drivers: [], lead: null, leadW: -1, relLead: null }; byPickup.set(pk, e); }
         e.score += dw;
         e.drivers.push(h);
         if (dw > e.leadW || (dw === e.leadW && (h.news_updated || 0) > (e.lead.news_updated || 0))){
           e.lead = h; e.leadW = dw;
         }
+        // Runway lead: the most relevant (highest on depth chart) injured driver.
+        // His return is what actually ends the pickup's role — e.g. Barkley's
+        // week-to-week matters more than Bigsby's IR for Shipley's window.
+        if (!e.relLead || relevance(h) < relevance(e.relLead)) e.relLead = h;
       }
     }
     // Talent flag: players the market loves but who haven't shown they're good.
