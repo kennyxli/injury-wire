@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 83; // bump every push; shown in footer to spot cached code
+const BUILD_V = 84; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -676,6 +676,23 @@ function render(){
 function renderInner(){
   const q = query.toLowerCase();
   let html = "";
+  // Deep-link banner from push notification (?injury=Player+Name):
+  // tap notif -> app opens -> injury + waiver pickup right at the top.
+  const injParam = new URLSearchParams(location.search).get("injury");
+  if (injParam && !window._injBannerDismissed) {
+    const target = Object.values(players).find(p => normName(p.name) === normName(injParam));
+    if (target) {
+      const w = WAIVER_MAP[normName(target.name)];
+      const pickup = w ? (Array.isArray(w.pickup) ? w.pickup.join(" / ") : w.pickup) : null;
+      html += `<div class="card" style="border:2px solid var(--accent);margin-bottom:12px;position:relative">
+        <button onclick="window._injBannerDismissed=1;render()" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer" title="Dismiss">✕</button>
+        <div style="font-size:15px;font-weight:800;padding-right:24px">🚨 ${esc(target.name)} <span style="color:var(--muted);font-weight:400">· ${esc(target.pos)} · ${esc(target.team||"FA")}</span></div>
+        <div style="margin-top:6px"><span class="badge ${badgeClass(target.status)}">${esc(shortStatus(target.status))}</span>${target.injury_part ? ` <span style="font-size:13px;color:var(--muted)">· ${esc(target.injury_part)}</span>` : ""}</div>
+        ${pickup ? `<div style="margin-top:10px;font-size:14px">💊 <b>Waiver pickup:</b> ${badgeNames(pickup)}<div style="font-size:13px;color:var(--muted);margin-top:2px">${esc((w&&w.note)||"")}</div></div>`
+                 : `<div style="margin-top:10px;font-size:13px;color:var(--muted)">No mapped waiver pickup for this injury.</div>`}
+      </div>`;
+    }
+  }
   if (filter === "CHANGES"){
     // Latest = all injured players, strictly chronological by most recent
     // news/updates. A player jumps to the top whenever Sleeper bumps their
