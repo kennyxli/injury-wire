@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 92; // bump every push; shown in footer to spot cached code
+const BUILD_V = 93; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -972,14 +972,31 @@ function renderInner(){
     // Merge injuries + breakouts: sort ALL by FAAB% high to low, ties by add volume.
     cards.sort((a, b) => ((b.faab || {}).pct || 0) - ((a.faab || {}).pct || 0)
       || ((b.addsNum || b.countNum || 0) - (a.addsNum || a.countNum || 0)));
-    cards.length = Math.min(cards.length, 10);
-    html += cards.length ? cards.map((c, i)=>
-      `<div class="card">
+    // 🤖 Analyst judgments: garbage-offense filter + verdict badges + FAAB caps.
+    // This is what makes the live list AI-smart, not just injury-driven.
+    const aiJ = (window._aiRankings && window._aiRankings.judgments) || {};
+    const aiGarbage = new Set(((window._aiRankings && window._aiRankings.garbageOffenses) || ["MIA", "CLE"]).map(t => String(t).toUpperCase()));
+    const VERDICT_BADGE = { target:"🎯", rental:"⏳", stash:"📦", "boom-bust":"🎲", trap:"⚠️", skip:"🚫" };
+    for (const c of cards) {
+      if (aiGarbage.has((c.team || "").toUpperCase())) { c._skip = true; continue; }
+      const j = aiJ[normName(c.name)];
+      if (!j) continue;
+      c._verdict = j.verdict; c._vnote = j.note;
+      if (j.maxFaab != null && c.faab && c.faab.pct > j.maxFaab) {
+        c.faab = { ...c.faab, pct: j.maxFaab, label: c.faab.label + " (capped)" };
+      }
+      if (j.verdict === "skip" || j.verdict === "trap") c._skip = true;
+    }
+    const live = cards.filter(c => !c._skip);
+    live.length = Math.min(live.length, 10);
+    html += live.length ? live.map((c, i)=>{
+      const vb = c._verdict ? `<div style="font-size:12px;margin-top:6px">${VERDICT_BADGE[c._verdict]||"🤖"} <b>Analyst: ${esc(c._verdict)}</b>${c._vnote ? ` — <span style="color:var(--muted)">${esc(c._vnote)}</span>` : ""}</div>` : "";
+      return `<div class="card">
         <div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(c.name)}</div>
         <div class="pmeta">${esc(c.pos)}${c.pos && c.team ? " · " : ""}${esc(c.team)}</div></div>
         <div style="text-align:right">${c.count ? `<span class="adds" style="color:var(--green);font-weight:800">+${c.count}</span>` : ""}${c.faab && c.faab.pct > 0 ? `<div style="font-size:11px;color:var(--accent);font-weight:700;margin-top:2px">${esc(c.faab.label)} · ${c.faab.pct}%</div>` : ""}</div></div>
-        <div class="inj">${esc(c.ctx)}</div></div>`
-    ).join("") : `<div class="empty">Loading waiver targets…</div>`;
+        <div class="inj">${esc(c.ctx)}</div>${vb}</div>`;
+    }).join("") : `<div class="empty">Loading waiver targets…</div>`;
     if (noPickup.length){
       html += `<h2 style="margin-top:18px">📰 More injuries — deeper adds</h2>`;
       // Flatten pickups and sort by add volume (ones with adds first)
