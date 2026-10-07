@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 85; // bump every push; shown in footer to spot cached code
+const BUILD_V = 86; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -906,6 +906,7 @@ function renderInner(){
       const faab = e._faab;
       cards.push({ name: e.name, pos: pl.pos || "", team: pl.team || "",
         count: cnt ? Number(cnt).toLocaleString() : null,
+        addsNum: Number(cnt) || 0,
         faab: faab,
         ctx: "⚡ " + h.name + " (" + shortStatus(h.status) + ")" + (secondary.length ? " + " + secondary.join(" + ") : "") + " — " + e.w.note });
     }
@@ -938,10 +939,9 @@ function renderInner(){
       if (cards.length >= 24) break;
       cards.push(f);
     }
-    // Merge injuries + breakouts: sort ALL by FAAB% high to low.
-    // A breakout like Brian Robinson (3 TDs, 383k adds) competes with
-    // injury pickups — not just filler underneath.
-    cards.sort((a, b) => ((b.faab || {}).pct || 0) - ((a.faab || {}).pct || 0));
+    // Merge injuries + breakouts: sort ALL by FAAB% high to low, ties by add volume.
+    cards.sort((a, b) => ((b.faab || {}).pct || 0) - ((a.faab || {}).pct || 0)
+      || ((b.addsNum || b.countNum || 0) - (a.addsNum || a.countNum || 0)));
     cards.length = Math.min(cards.length, 12);
     html += cards.length ? cards.map((c, i)=>
       `<div class="card">
