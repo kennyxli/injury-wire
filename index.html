@@ -95,8 +95,10 @@
   <button class="tab" data-f="TE">TE</button>
 </div>
 
-<button class="refresh" id="refreshBtn">⟳ Pull latest now</button>
-<button class="refresh" id="notifyBtn" style="margin-top:6px">🔔 Enable injury alerts</button>
+<div style="display:flex; gap:8px; margin:4px 16px 12px;">
+<button class="refresh" id="refreshBtn" style="flex:1; margin:0; padding:10px 8px; font-size:13px;">⟳ Pull latest</button>
+<button class="refresh" id="notifyBtn" style="flex:1; margin:0; padding:10px 8px; font-size:13px;">🔔 Enable alerts</button>
+</div>
 <div id="pushSetup" style="display:none; margin:10px 16px; padding:14px; background:var(--card); border:1px solid var(--accent); border-radius:14px; font-size:13px;">
   <div style="font-weight:700; margin-bottom:8px;">📲 Closed-app alerts — one-time setup</div>
   <div id="pushStatus" style="color:var(--muted); margin-bottom:8px;">Setting up…</div>
@@ -1190,7 +1192,7 @@ $("notifyBtn").addEventListener("click", async ()=>{
 function updateNotifyBtn(){
   const b = $("notifyBtn"); if (!b) return;
   b.textContent = (notifyEnabled && Notification.permission === "granted")
-    ? "🔕 Injury alerts on — tap to disable" : "🔔 Enable injury alerts";
+    ? "🔕 Alerts on" : "🔔 Enable alerts";
 }
 updateNotifyBtn();
 $("yahooBtn").addEventListener("click", ()=>{
