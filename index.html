@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 79; // bump every push; shown in footer to spot cached code
+const BUILD_V = 80; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -943,7 +943,7 @@ function renderInner(){
           flat.push({ h, w, n, c: trendingCounts[normName(n)] || 0 });
         });
       });
-      flat.sort((a, b) => b.c - a.c);
+      flat.sort((a, b) => ((b.h.news_updated || 0) - (a.h.news_updated || 0)) || (b.c - a.c));
       html += flat.map(({ h, w, n, c }) => {
           const pl = findByName(n) || {};
           const hasAdds = c > 0;
