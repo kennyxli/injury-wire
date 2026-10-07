@@ -677,15 +677,22 @@ function renderInner(){
   // Deep-link banner from push notification (?injury=Player+Name):
   // tap notif -> app opens -> injury + waiver pickup right at the top.
   const injParam = new URLSearchParams(location.search).get("injury");
+  // v94: push deep link now carries ?st=<status>&news=<detail> so the banner
+  // shows the news even when Sleeper has no status for the player.
+  const injStatus = new URLSearchParams(location.search).get("st") || "";
+  const injNews = new URLSearchParams(location.search).get("news") || "";
   if (injParam && !window._injBannerDismissed) {
     const target = Object.values(players).find(p => normName(p.name) === normName(injParam));
     if (target) {
       const w = WAIVER_MAP[normName(target.name)];
       const pickup = w ? (Array.isArray(w.pickup) ? w.pickup.join(" / ") : w.pickup) : null;
+      // Prefer live Sleeper status, fall back to the push param.
+      const showStatus = target.status || injStatus;
       html += `<div class="card" style="border:2px solid var(--accent);margin-bottom:12px;position:relative">
         <button onclick="window._injBannerDismissed=1;render()" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer" title="Dismiss">✕</button>
         <div style="font-size:15px;font-weight:800;padding-right:24px">🚨 ${esc(target.name)} <span style="color:var(--muted);font-weight:400">· ${esc(target.pos)} · ${esc(target.team||"FA")}</span></div>
-        <div style="margin-top:6px"><span class="badge ${badgeClass(target.status)}">${esc(shortStatus(target.status))}</span>${target.injury_part ? ` <span style="font-size:13px;color:var(--muted)">· ${esc(target.injury_part)}</span>` : ""}</div>
+        ${showStatus ? `<div style="margin-top:6px"><span class="badge ${badgeClass(showStatus)}">${esc(shortStatus(showStatus))}</span>${target.injury_part ? ` <span style="font-size:13px;color:var(--muted)">· ${esc(target.injury_part)}</span>` : ""}</div>` : ""}
+        ${injNews ? `<div style="margin-top:8px;font-size:13px">📰 ${esc(injNews)}</div>` : ""}
         ${pickup ? `<div style="margin-top:10px;font-size:14px">💊 <b>Waiver pickup:</b> ${badgeNames(pickup)}<div style="font-size:13px;color:var(--muted);margin-top:2px">${esc((w&&w.note)||"")}</div></div>`
                  : `<div style="margin-top:10px;font-size:13px;color:var(--muted)">No mapped waiver pickup for this injury.</div>`}
       </div>`;
