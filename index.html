@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 84; // bump every push; shown in footer to spot cached code
+const BUILD_V = 85; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -1132,6 +1132,36 @@ setInterval(()=>refresh(false), POLL_MS);
 setInterval(()=>{ // keep "xm ago" labels fresh
   if (lastOk) statusEl.innerHTML = `<span class="dot"></span> Live · updated ${timeAgo(lastOk)} · checks every 90s`;
 }, 15000);
+// Pull-to-refresh: swipe down from the top reloads the latest data (PWA muscle memory).
+(() => {
+  let startY = 0, pulling = false;
+  const THRESH = 90;
+  const el = document.createElement("div");
+  el.id = "ptr";
+  el.style.cssText = "position:fixed;top:0;left:0;right:0;text-align:center;z-index:99;pointer-events:none;opacity:0;transition:opacity .15s;font-size:13px;color:var(--muted);padding:10px;background:var(--bg);";
+  el.innerHTML = "↓ pull to refresh";
+  document.body.appendChild(el);
+  document.addEventListener("touchstart", e => {
+    if (window.scrollY <= 0 && !pulling) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+  document.addEventListener("touchmove", e => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0 && window.scrollY <= 0) {
+      e.preventDefault();
+      el.style.opacity = Math.min(1, dy / THRESH);
+      el.innerHTML = dy >= THRESH ? "⟳ release to refresh" : "↓ pull to refresh";
+      el.dataset.dy = dy;
+    } else if (dy <= 0) { el.style.opacity = 0; }
+  }, { passive: false });
+  document.addEventListener("touchend", () => {
+    if (!pulling) return;
+    pulling = false;
+    const dy = parseFloat(el.dataset.dy || 0);
+    el.style.opacity = 0; el.dataset.dy = 0;
+    if (dy >= THRESH) refresh(true);
+  }, { passive: true });
+})();
 updateYahooBtn();
 if (YAHOO_WORKER && yahooConnected()) yahooSync();
 refresh(false);
