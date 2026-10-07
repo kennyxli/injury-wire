@@ -101,6 +101,7 @@
   <div id="pushStatus" style="color:var(--muted); margin-bottom:8px;">Setting up…</div>
   <textarea id="pushSubBox" readonly rows="4" style="width:100%; font-size:10px; background:#0a0e14; color:#8b98ab; border:1px solid #243044; border-radius:8px; padding:8px; display:none;"></textarea>
   <button class="refresh" id="pushCopyBtn" style="display:none; margin-top:8px;">📋 Copy code & send to Brio</button>
+  <button class="refresh" id="pushDismissBtn" style="margin-top:8px; opacity:.7;">✕ Done — hide this panel</button>
 </div>
 <button class="refresh" id="yahooBtn" style="display:none">🔗 Connect Yahoo</button>
 
@@ -115,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 78; // bump every push; shown in footer to spot cached code
+const BUILD_V = 79; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -132,6 +133,15 @@ async function setupPush(){
   const status = document.getElementById("pushStatus");
   const box = document.getElementById("pushSubBox");
   const copyBtn = document.getElementById("pushCopyBtn");
+  const dismissBtn = document.getElementById("pushDismissBtn");
+  let pushDone = false;
+  try{ pushDone = localStorage.getItem("ww_push_done") === "1"; }catch(e){}
+  const hidePanel = ()=>{ panel.style.display = "none"; };
+  if (dismissBtn) dismissBtn.onclick = ()=>{
+    try{ localStorage.setItem("ww_push_done", "1"); }catch(e){}
+    hidePanel();
+  };
+  if (pushDone) return; // already set up — stay out of the way
   panel.style.display = "block";
   try{
     if (!("serviceWorker" in navigator) || !("PushManager" in window)){
