@@ -24,7 +24,8 @@
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
     padding-bottom:env(safe-area-inset-bottom);}
   header{position:sticky; top:0; z-index:10; background:rgba(10,14,20,.92);
-    backdrop-filter:blur(12px); border-bottom:1px solid #1e293b; padding:12px 16px;}
+    backdrop-filter:blur(12px); border-bottom:1px solid #1e293b; padding:12px 16px;
+    padding-top:calc(12px + env(safe-area-inset-top));}
   header h1{margin:0; font-size:20px; letter-spacing:.5px;}
   header h1 span{color:var(--accent);}
   .sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:var(--muted);}
@@ -302,6 +303,14 @@ async function fetchPlayers(){
 async function fetchTrending(){
   try{
     const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=50");
+    if (!r.ok) return [];
+    return r.json();
+  }catch(e){ return []; }
+}
+// v96: short-window trending — what's being added RIGHT NOW (2h), not stale 24h volume
+async function fetchTrendingNow(){
+  try{
+    const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=2&limit=25");
     if (!r.ok) return [];
     return r.json();
   }catch(e){ return []; }
@@ -773,9 +782,30 @@ function renderInner(){
     html += `<h2>🎯 Top waiver targets</h2>
       <div style="display:flex;gap:8px;margin:0 2px 10px">
         <button class="tab ${wv==="top"?"active":""}" data-wv="top" style="font-size:12px;padding:6px 12px">📈 Top adds</button>
+        <button class="tab ${wv==="now"?"active":""}" data-wv="now" style="font-size:12px;padding:6px 12px">🔥 Trending now</button>
         <button class="tab ${wv==="smart"?"active":""}" data-wv="smart" style="font-size:12px;padding:6px 12px">🧠 Smart picks</button>
       </div>`;
-    if (wv === "top") {
+    if (wv === "now") {
+      // v96: what's being added RIGHT NOW (2h window) — current momentum, not stale 24h volume
+      html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Being added right now — last 2 hours, straight from Sleeper.</div>";
+      const now = window._trendingNow;
+      if (now === undefined) {
+        html += `<div class="empty">Loading trending…</div>`;
+        fetchTrendingNow().then(t => { window._trendingNow = t; render(); }).catch(() => { window._trendingNow = []; render(); });
+      } else if (!now.length) {
+        html += `<div class="empty">No trending adds in the last 2h.</div>`;
+      } else {
+        html += now.map((t, i) => {
+          const p = players[t.player_id] || {};
+          if (!p.name || !POSITIONS.includes(p.pos)) return "";
+          const ctx = injuryContextFor(p);
+          return `<div class="card"><div class="row1"><div><div class="pname"><span style="color:var(--muted)">#${i+1}</span> ${badgeNames(p.name)}</div>
+            <div class="pmeta">${esc(p.pos)} · ${esc(p.team||"FA")}</div></div>
+            <span class="adds" style="color:var(--green);font-weight:800">+${Number(t.count).toLocaleString()}</span></div>
+            <div class="inj" style="margin-top:4px;opacity:.8">${esc(ctx)}</div></div>`;
+        }).join("");
+      }
+    } else if (wv === "top") {
       // Pure volume: top trending by 24h adds, no logic
       html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Most-added players in the last 24h, straight from Sleeper.</div>";
       const top = [...trending].slice(0, 25);
@@ -1066,6 +1096,10 @@ async function refresh(manual){
   try{
     if (manual) statusEl.textContent = "Pulling latest…";
     const [pd, tr, sb, nw] = await Promise.all([fetchPlayers(), fetchTrending(), fetchScoreboard(), fetchNews()]);
+    // v96: refresh the 2h trending window too (only if the tab has been viewed — saves a call otherwise)
+    if (window._trendingNow !== undefined) {
+      fetchTrendingNow().then(t => { window._trendingNow = t; if ((window._waiverView||"top") === "now") render(); }).catch(()=>{});
+    }
     const next = {};
     for (const id in pd){
       const p = pd[id];
