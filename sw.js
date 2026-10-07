@@ -21,7 +21,9 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
-        if (w.url.includes('injury-wire')) { w.focus(); return; }
+        // Deep link: navigate the existing tab to the alert URL (e.g. ?injury=Name),
+        // not just focus it — otherwise the push context is lost.
+        if (w.url.includes('injury-wire')) { return w.navigate(url).then(() => w.focus()); }
       }
       return clients.openWindow(url);
     })
