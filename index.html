@@ -116,7 +116,7 @@
 
 <script>
 "use strict";
-const BUILD_V = 80; // bump every push; shown in footer to spot cached code
+const BUILD_V = 81; // bump every push; shown in footer to spot cached code
 document.getElementById("buildv").textContent = "v" + BUILD_V;
 
 /* ============ WEB PUSH (closed-app alerts, v78) ============ */
@@ -721,14 +721,14 @@ function renderInner(){
     }).join("") : `<div class="empty">No injuries right now. 🎉</div>`;
   } else if (filter === "NEWS"){
     html += "<h2>📰 NFL News Wire</h2>";
-    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines · last 24 hours · refreshes every 90s.</div>";
+    html += "<div class='pmeta' style='margin:0 2px 10px;opacity:.75'>Injury-relevant headlines · last 24 hours · newest first · refreshes every 90s.</div>";
     // Filter to injury-relevant news only — this is an injury wire, not ESPN.com
     // Deduplicate: same story from multiple reporters (e.g. retirement reported 3 ways)
     const seen = new Set();
     const items = [...nflNews]
       .map(a => ({ a, s: injuryScore(a) }))
       .filter(x => x.s > 0)
-      .sort((x, y) => (y.s - x.s) || (y.a.published - x.a.published))
+      .sort((x, y) => (y.a.published - x.a.published))
       .filter(x => {
         // Dedup key: first 5 significant words of headline
         const key = normName(x.a.headline).split(" ").filter(w => w.length > 3).slice(0, 5).join(" ");
