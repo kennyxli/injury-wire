@@ -1,13 +1,76 @@
 {
  "week": 6,
- "updated": "2026-10-13T02:45:12Z",
+ "updated": "2026-10-13T21:41:54Z",
  "sources_used": [
   "FantasyPros",
   "RotoBaller",
   "Last Word on Sports",
   "RotoStreetJournal"
  ],
+ "method": "Analyst picks = AI determination: multi-source Week 6 consensus filtered against Kenny's actual Yahoo wire and his no-Dolphins/no-Browns rule. The pure fair-average top 5 is preserved verbatim in math_top5 (no rulebook cuts applied to it).",
  "picks": [
+  {
+   "name": "Brenton Strange",
+   "pos": "TE",
+   "team": "JAX",
+   "faab": "8%",
+   "tier": "Strong add",
+   "why": "Back-to-back 8-target games as Jacksonville's starting TE \u2014 the role is real, and he's the #1 obtainable add on the consensus board. Catch: JAX is on bye in Week 7, so he's a Week 6 play you then hold through the bye.",
+   "sources": [
+    "Analyst consensus avg 5.50",
+    "On waivers \u2014 clears Oct 14 (verified Oct 13)"
+   ]
+  },
+  {
+   "name": "Pat Freiermuth",
+   "pos": "TE",
+   "team": "PIT",
+   "faab": "6%",
+   "tier": "Strong add",
+   "why": "4 TDs in 5 games for Pittsburgh. The red-zone role is bankable at a thin position, and he's actually available in most leagues \u2014 including Kenny's.",
+   "sources": [
+    "Analyst consensus avg 6.50",
+    "On waivers \u2014 clears Oct 14 (verified Oct 13)"
+   ]
+  },
+  {
+   "name": "Jonah Coleman",
+   "pos": "RB",
+   "team": "DEN",
+   "faab": "4%",
+   "tier": "Flier",
+   "why": "Denver RB on IR, eligible to return Week 7. Cheap ceiling stash \u2014 but note: Kenny's IR is full (Diggs + Monangai), so he'd hold a bench spot until one of them clears.",
+   "sources": [
+    "AI determination \u2014 IR stash",
+    "On waivers, IR-tagged \u2014 clears Oct 14 (verified Oct 13)"
+   ]
+  },
+  {
+   "name": "Tank Dell",
+   "pos": "WR",
+   "team": "HOU",
+   "faab": "5%",
+   "tier": "Flier",
+   "why": "Houston WR on IR-R with elite upside when he's back. Pure ceiling stash \u2014 only if you have the bench room to wait.",
+   "sources": [
+    "AI determination \u2014 IR-R stash",
+    "On waivers, IR-R \u2014 clears Oct 14 (verified Oct 13)"
+   ]
+  },
+  {
+   "name": "Tyjae Spears",
+   "pos": "RB",
+   "team": "TEN",
+   "faab": "4%",
+   "tier": "Flier",
+   "why": "Tennessee's passing-down back. Gets very interesting if Pollard (expiring deal) is moved before the trade deadline.",
+   "sources": [
+    "AI determination \u2014 trade-deadline contingency",
+    "On waivers \u2014 clears Oct 14 (verified Oct 13)"
+   ]
+  }
+ ],
+ "math_top5": [
   {
    "avg": 1.0,
    "faab": "5%",
@@ -56,27 +119,27 @@
     "Last Word on Sports #2"
    ],
    "tier": "Flier",
-   "why": "Last Word on Sports' #2 add, on Tennessee target volume. It's the same redundant slot profile that has burned managers before — the judgment layer flags it as a trap."
+   "why": "Last Word on Sports' #2 add, on Tennessee target volume. It's the same redundant slot profile that has burned managers before \u2014 the judgment layer flags it as a trap."
   },
   {
    "avg": 3.67,
    "faab": "5%",
    "name": "Jordyn Tyson",
    "pos": "WR",
-   "team": "ARI",
+   "team": "NO",
    "sources": [
     "FantasyPros (Fitzmaurice) #2",
     "RotoBaller #2",
     "RotoStreetJournal #7"
    ],
    "tier": "Flier",
-   "why": "Top-2 at two of the five sources. Arizona's rookie wideout is an IR stash with a multi-week runway once he's active — the average hides how much the rankers who cover him love him."
+   "why": "Top-2 at two of the five sources. Arizona's rookie wideout is an IR stash with a multi-week runway once he's active \u2014 the average hides how much the rankers who cover him love him."
   }
  ],
  "judgments": {
   "brenton strange": {
    "maxFaab": 8,
-   "note": "Back-to-back 8-target games as Jacksonville's starting TE — the role is real. Catch: JAX is on bye in Week 7, so he's a Week 6 play you then hold through the bye.",
+   "note": "Back-to-back 8-target games as Jacksonville's starting TE \u2014 the role is real. Catch: JAX is on bye in Week 7, so he's a Week 6 play you then hold through the bye.",
    "verdict": "target"
   },
   "pat freiermuth": {
@@ -86,12 +149,12 @@
   },
   "jonah coleman": {
    "maxFaab": 4,
-   "note": "Denver RB on IR, eligible to return Week 7 — costs nothing but the IR slot until he's activated.",
+   "note": "Denver RB on IR, eligible to return Week 7 \u2014 costs nothing but the IR slot until he's activated.",
    "verdict": "stash"
   },
   "tank dell": {
    "maxFaab": 5,
-   "note": "Houston WR on IR-R with elite upside when he's back. Pure ceiling stash — only if you have the bench room to wait.",
+   "note": "Houston WR on IR-R with elite upside when he's back. Pure ceiling stash \u2014 only if you have the bench room to wait.",
    "verdict": "stash"
   },
   "tyjae spears": {
@@ -101,12 +164,12 @@
   },
   "t.j. hockenson": {
    "maxFaab": 6,
-   "note": "In the concussion protocol. If he clears and somehow hits your wire he's the best TE add available — don't bid until he's actually cleared.",
+   "note": "In the concussion protocol. If he clears and somehow hits your wire he's the best TE add available \u2014 don't bid until he's actually cleared.",
    "verdict": "watch"
   },
   "woody marks": {
    "maxFaab": 18,
-   "note": "The consensus #1 RB add this week — but rostered in Kenny's league (Guru Njigba).",
+   "note": "The consensus #1 RB add this week \u2014 but rostered in Kenny's league (Guru Njigba).",
    "verdict": "target"
   },
   "jordan love": {
@@ -116,12 +179,12 @@
   },
   "dylan sampson": {
    "maxFaab": 0,
-   "note": "CLE garbage offense — excluded by Kenny's rule, whatever the rankers say.",
+   "note": "CLE garbage offense \u2014 excluded by Kenny's rule, whatever the rankers say.",
    "verdict": "skip"
   },
   "wan'dale robinson": {
    "maxFaab": 0,
-   "note": "Consensus loves him; the profile doesn't. Tennessee offense, redundant slot volume — Kenny dropped him in Week 5 for a reason.",
+   "note": "Consensus loves him; the profile doesn't. Tennessee offense, redundant slot volume \u2014 Kenny dropped him in Week 5 for a reason.",
    "verdict": "trap"
   },
   "dameon pierce": {
@@ -141,27 +204,27 @@
   },
   "aaron rodgers": {
    "maxFaab": 0,
-   "note": "Rostered (claimed by Def Not Kira on waivers in Week 5) — no longer available.",
+   "note": "Rostered (claimed by Def Not Kira on waivers in Week 5) \u2014 no longer available.",
    "verdict": "skip"
   },
   "deshaun watson": {
    "maxFaab": 0,
-   "note": "CLE garbage offense — excluded by Kenny's rule.",
+   "note": "CLE garbage offense \u2014 excluded by Kenny's rule.",
    "verdict": "skip"
   },
   "jaylen wright": {
    "maxFaab": 0,
-   "note": "MIA garbage offense — excluded by Kenny's rule.",
+   "note": "MIA garbage offense \u2014 excluded by Kenny's rule.",
    "verdict": "skip"
   },
   "malik willis": {
    "maxFaab": 0,
-   "note": "MIA garbage offense — excluded by Kenny's rule.",
+   "note": "MIA garbage offense \u2014 excluded by Kenny's rule.",
    "verdict": "skip"
   },
   "ollie gordon ii": {
    "maxFaab": 0,
-   "note": "MIA garbage offense — excluded by Kenny's rule. (Also already on Kenny's bench.)",
+   "note": "MIA garbage offense \u2014 excluded by Kenny's rule. (Also already on Kenny's bench.)",
    "verdict": "skip"
   }
  }
