@@ -121,8 +121,8 @@
    "verdict": "skip"
   },
   "tank dell": {
-   "maxFaab": 5,
-   "note": "Activated for Week 7 vs the Giants (confirmed Oct 19) \u2014 first game in 22 months, light snap count expected, Week 8 bye behind it. If the ramp makes him Houston's #2 by November, he's the best stash on this wire. Costs a bench spot now that he's active.",
+   "maxFaab": 3,
+   "note": "Activated for Week 7 (confirmed Oct 19) after a catastrophic knee dislocation \u2014 all three ligaments plus meniscus, two staged surgeries, ~670 days out. Precedent is harsh: Godwin (a lesser injury) needed his second year back to look like himself; Gallup never did. Realistic 2026 ceiling is a boom-or-bust flex in Houston's No. 3/slot role, not the 2023 version. Deep stash at $3.",
    "verdict": "stash"
   },
   "tanner mckee": {
@@ -244,18 +244,6 @@
    "why": "Back-to-back big games (7 catches, 86 yards, TD in Week 6) and Romeo Doubs' shoulder injury \u2014 an estimated Week 7-12 return window \u2014 opens New England's target tree further. RotoWire's #2 WR add at 8% of budget. Bonus: the Patriots play Thursday in Week 7, so he's a starter the moment he clears."
   },
   {
-   "faab": "5%",
-   "name": "Tank Dell",
-   "pos": "WR",
-   "sources": [
-    "AI determination \u2014 IR-R stash, return est. Week 7-9",
-    "On waivers, IR-R \u2014 clears Oct 21 (verified Oct 20)"
-   ],
-   "team": "HOU",
-   "tier": "Flier",
-   "why": "Activated for Week 7 vs the Giants (confirmed Oct 19) \u2014 his first game in 22 months, with a light snap count expected and a Week 8 bye right behind it. The ramp is the bet: Collins is the alpha and Harrison is being force-fed, but if Dell reclaims a top-2 role by November he's the best stash on this wire. He's active now, so he costs a bench spot, not an IR slot."
-  },
-  {
    "faab": "4%",
    "name": "Tyjae Spears",
    "pos": "RB",
@@ -266,6 +254,18 @@
    "team": "TEN",
    "tier": "Flier",
    "why": "The best running-back stash on this wire \u2014 Tennessee's passing-down back, one Pollard development away from a real role. The offense caps his weekly floor, so this is a bench hold with contingent upside, not a Week 7 start."
+  },
+  {
+   "faab": "3%",
+   "name": "Tank Dell",
+   "pos": "WR",
+   "sources": [
+    "AI determination \u2014 IR-R stash, return est. Week 7-9",
+    "On waivers, IR-R \u2014 clears Oct 21 (verified Oct 20)"
+   ],
+   "team": "HOU",
+   "tier": "Flier",
+   "why": "Activated for Week 7 vs the Giants \u2014 his first game in 22 months, after a full knee dislocation (ACL/MCL/LCL + meniscus, two surgeries). Light snap count expected, Week 8 bye behind it. The honest ceiling: the 2023 rookie version (15.0 PPR/game, WR1 spike weeks) is not the 2026 expectation \u2014 his last healthy season (2024) was ~10 PPR/game in a three-man room, and the precedent for this injury (Godwin needed year two back; Gallup never regained form) says year one is a discount year. Realistic best case: Houston's No. 3/slot flex by December. A deep stash, priced like one."
   },
   {
    "faab": "3%",
@@ -289,6 +289,6 @@
   "The Athletic",
   "PFF"
  ],
- "updated": "2026-10-20T05:03:02Z",
+ "updated": "2026-10-20T05:08:30Z",
  "week": 7
 }
